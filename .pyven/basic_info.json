@@ -1,0 +1,11 @@
+{
+    "repo_name": "MusicVis",
+    "requirements": [
+        "streamlit",
+        "opencv-python-headless",
+        "mingus",
+        "MIDIUtil",
+        "pretty_midi",
+        "SciPy"
+    ]
+}

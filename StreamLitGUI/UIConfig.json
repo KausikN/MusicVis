@@ -1,0 +1,10 @@
+{
+    "PROJECT_NAME": "MusicVis",
+    "PROJECT_LINK": "https://github.com/KausikN/MusicVis",
+
+    "PROJECT_DESC": "Visualiser for music and audio using python",
+
+    "PROJECT_README": "README.md",
+
+    "PROJECT_MODES": ["Basic Piano Sequencer"]
+}
