@@ -92,29 +92,33 @@ def Note_DecomposeNotesToKeys(notes, common_params={}):
             keys_decomposed_current = Note_DecomposeNotesToKeys(TRACKS[note["note"]]["notes"], TRACKS[note["note"]]["common_params"])
         ## Check if chord
         else:
-            chord_check = True
-            try:
-                ### Get Notes for the Chord
-                ChordNotes = Chord_GeteNotes_FromShorthand(note["note"])
-                for cni in range(len(ChordNotes)):
-                    cnd = dict(note)
-                    cnd["note"] = ChordNotes[cni] # Set the current note in the chord
-                    if cni > 0: cnd["delay"] = 0 # Only the first note in a chord will have the delay
-                    keys_decomposed_current.append(cnd)
-            except Exception as e:
-                # print("\n\n\n")
-                # print("### CHORD NOT FOUND")
-                # print(note)
-                # # print(e)
-                # print("\n\n\n")
-                chord_check = False
+            chord_check = False
+            chord_marker = "_"
+            if note["note"].startswith(chord_marker):
+                note["note"] = note["note"][len(chord_marker):]
+                try:
+                    ### Get Notes for the Chord
+                    ChordNotes = Chord_GeteNotes_FromShorthand(note["note"])
+                    for cni in range(len(ChordNotes)):
+                        cnd = dict(note)
+                        cnd["note"] = ChordNotes[cni] # Set the current note in the chord
+                        if cni > 0: cnd["delay"] = 0 # Only the first note in a chord will have the delay
+                        keys_decomposed_current.append(cnd)
+                    chord_check = True
+                except Exception as e:
+                    # print("\n\n\n")
+                    # print("### CHORD NOT FOUND")
+                    # print(note)
+                    # # print(e)
+                    # print("\n\n\n")
+                    pass
         ## If nothing, it is a key
             if not chord_check:
                 ### All keys should have first letter in upper case and all other letters in lower case
                 if len(note["note"]) > 1:
                     note["note"] = note["note"][:1].upper() + note["note"][1:].lower()
-                ### Remove extra "k" at the end of key
-                note["note"] = note["note"].rstrip("k")
+                # ### Remove extra "k" at the end of key
+                # note["note"] = note["note"].rstrip("k")
                 ### Append
                 keys_decomposed_current = [note]
         
@@ -163,6 +167,7 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
         if "duration" not in note.keys(): note["duration"] = 1
         if "volume" not in note.keys(): note["volume"] = 100
         ## Add note if valid pitch
+        # print(note)
         MIDIAudio.addNote(track, note["channel"], note["pitch"], cur_time, note["duration"], note["volume"])
 
     return MIDIAudio

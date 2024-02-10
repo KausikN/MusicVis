@@ -85,15 +85,13 @@ def UI_LoadNotes():
     ))
     # Notes
     USERINPUT_NotesLoadMethod = st.selectbox("Load Notes Method", [
-        "Tracks, Chords, Keys",
+        "Simple Note Code",
         "JSON"
     ])
     USERINPUT_Notes = []
-    if USERINPUT_NotesLoadMethod == "Tracks, Chords, Keys":
-        USERINPUT_NotesKeys = st.text_area("Enter Code (Separated by commas, spaces or new lines) (Denote keys with a extra 'k' at the end)", height=300)
-        USERINPUT_NotesKeys = USERINPUT_NotesKeys.replace(",", " ").replace("\n", " ").split()
-        ## Form keys from chords
-        USERINPUT_Notes = USERINPUT_NotesKeys
+    if USERINPUT_NotesLoadMethod == "Simple Note Code":
+        USERINPUT_NotesKeys = st.text_area("Enter Code (Separated by commas, spaces or new lines) (Denote chords with a extra '_' at the start)", height=300)
+        USERINPUT_Notes = USERINPUT_NotesKeys.replace(",", " ").replace("\n", " ").split()
     else:
         USERINPUT_Notes = json.loads(st.text_area(
             "Notes", height=300,
