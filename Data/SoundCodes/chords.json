@@ -1,0 +1,86 @@
+{
+    "A": {
+        "name": "A Major",
+        "notes": ["A", "C#", "E"]
+    },
+    "Am": {
+        "name": "A Minor",
+        "notes": ["A", "C", "E"]
+    },
+    "Ak": {
+        "name": "A Key",
+        "notes": ["A"]
+    },
+    "B": {
+        "name": "B Major",
+        "notes": ["B", "D#", "F#"]
+    },
+    "Bm": {
+        "name": "B Minor",
+        "notes": ["B", "D", "F#"]
+    },
+    "Bk": {
+        "name": "B Key",
+        "notes": ["B"]
+    },
+    "C": {
+        "name": "C Major",
+        "notes": ["C", "E", "G"]
+    },
+    "Cm": {
+        "name": "C Minor",
+        "notes": ["C", "Eb", "G"]
+    },
+    "Ck": {
+        "name": "C Key",
+        "notes": ["C"]
+    },
+    "D": {
+        "name": "D Major",
+        "notes": ["D", "F#", "A"]
+    },
+    "Dm": {
+        "name": "D Minor",
+        "notes": ["D", "F", "A"]
+    },
+    "Dk": {
+        "name": "D Key",
+        "notes": ["D"]
+    },
+    "E": {
+        "name": "E Major",
+        "notes": ["E", "G#", "B"]
+    },
+    "Em": {
+        "name": "E Minor",
+        "notes": ["E", "G", "B"]
+    },
+    "Ek": {
+        "name": "E Key",
+        "notes": ["E"]
+    },
+    "F": {
+        "name": "F Major",
+        "notes": ["F", "A", "C"]
+    },
+    "Fm": {
+        "name": "F Minor",
+        "notes": ["F", "Ab", "C"]
+    },
+    "Fk": {
+        "name": "F Key",
+        "notes": ["F"]
+    },
+    "G": {
+        "name": "G Major",
+        "notes": ["G", "B", "D"]
+    },
+    "Gm": {
+        "name": "G Minor",
+        "notes": ["G", "Bb", "D"]
+    },
+    "Gk": {
+        "name": "G Key",
+        "notes": ["G"]
+    }
+}

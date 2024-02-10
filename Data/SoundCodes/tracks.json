@@ -1,0 +1,25 @@
+{
+    "counting_stars": {
+        "name": "Counting Stars",
+        "desc": "Counting Stars - One Republic",
+        "common_params": {
+            "channel": 0,
+            "octave": 4,
+            "delay": 1,
+            "duration": 1,
+            "volume": 100
+        },
+        "notes": [
+            {
+                "note": "Am"
+            },
+            {
+                "note": "C"
+            },
+            {
+                "note": "G"
+            },
+            "F"
+        ]
+    }
+}

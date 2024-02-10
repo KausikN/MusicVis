@@ -42,7 +42,9 @@ def HomePage():
 PATHS = {
     "cache": "StreamLitGUI/CacheData/Cache.json",
     "midi_save_path": "Data/GeneratedAudio/generated_midi.mid",
-    "wav_save_path": "Data/GeneratedAudio/generated_wav.wav"
+    "wav_save_path": "Data/GeneratedAudio/generated_wav.wav",
+    "chords": "Data/SoundCodes/chords.json",
+    "tracks": "Data/SoundCodes/tracks.json"
 }
 
 # Util Vars
@@ -83,36 +85,34 @@ def UI_LoadNotes():
     ))
     # Notes
     USERINPUT_NotesLoadMethod = st.selectbox("Load Notes Method", [
-        "Keys Only",
+        "Tracks, Chords, Keys",
         "JSON"
     ])
     USERINPUT_Notes = []
-    if USERINPUT_NotesLoadMethod == "Keys Only":
-        USERINPUT_NotesKeys = st.text_area("Enter Keys (Separated by commas, spaces or new lines)", height=300)
-        USERINPUT_NotesKeys = USERINPUT_NotesKeys.replace(",", " ").replace("\n", " ").upper().split()
-        USERINPUT_Notes = [
-            {
-                "key": note_key
-            }
-            for note_key in USERINPUT_NotesKeys
-        ]
+    if USERINPUT_NotesLoadMethod == "Tracks, Chords, Keys":
+        USERINPUT_NotesKeys = st.text_area("Enter Code (Separated by commas, spaces or new lines) (Denote keys with a extra 'k' at the end)", height=300)
+        USERINPUT_NotesKeys = USERINPUT_NotesKeys.replace(",", " ").replace("\n", " ").split()
+        ## Form keys from chords
+        USERINPUT_Notes = USERINPUT_NotesKeys
     else:
         USERINPUT_Notes = json.loads(st.text_area(
             "Notes", height=300,
             value=json.dumps([
                 {
-                    "key": ""
+                    "note": ""
                 }
             ], indent=8)
         ))
+    ## Decompose notes to keys
+    USERINPUT_Notes = LIBRARIES["PianoMusicGenerator"].Note_DecomposeNotesToKeys(USERINPUT_NotesKeys, common_params=USERINPUT_CommonParams)
 
     OUT = {
         "other_params": {
             "tempo": USERINPUT_tempo
         },
-        "common_params": USERINPUT_CommonParams,
         "notes": USERINPUT_Notes
     }
+    # print("\n\n", json.dumps(OUT, indent=4), "\n\n")
     return OUT
 
 # Repo Based Functions
@@ -121,6 +121,8 @@ def basic_piano_sequencer():
     st.header("Basic Piano Sequencer")
 
     # Prereq Loaders
+    LIBRARIES["PianoMusicGenerator"].CHORDS = json.load(open(PATHS["chords"], "r"))
+    LIBRARIES["PianoMusicGenerator"].TRACKS = json.load(open(PATHS["tracks"], "r"))
 
     # Load Inputs
     st.markdown("## Piano Info")
@@ -137,7 +139,6 @@ def basic_piano_sequencer():
     # Process Inputs
     ## Resolve Notes
     NOTES = USERINPUT_Inputs["notes"]
-    NOTES = LIBRARIES["PianoMusicGenerator"].Note_ResolveNotesWithCommonParams(NOTES, USERINPUT_Inputs["common_params"])
     ## Add track
     MIDIAudio = LIBRARIES["PianoMusicGenerator"].MIDI_AddTrack(
         NOTES, 

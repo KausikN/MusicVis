@@ -12,16 +12,21 @@ from midiutil import MIDIFile
 # Main Vars
 AVAILABLE_NOTES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 NOTES_ACCIDENTALS_MAP = {
+    # General Accidentals
     "Db": "C#",
     "D#": "Eb",
     "E#": "F",
     "Gb": "F#",
     "G#": "Ab",
     "A#": "Bb",
-    "B#": "C"
+    "B#": "C",
+    # Rare Accidentals
+    "F##": "G",
 }
 OCTAVES = list(range(11))
 NOTES_IN_OCTAVE = len(AVAILABLE_NOTES)
+CHORDS = {}
+TRACKS = {}
 
 # Main Functions
 ## Chord Functions
@@ -68,6 +73,58 @@ def Note_ResolveNotesWithCommonParams(notes, common_params={}):
     
     return notes_resolved
 
+def Note_DecomposeNotesToKeys(notes, common_params={}):
+    '''
+    Note - Decompose notes with tracks, chords and keys to keys
+    '''
+    # Init
+    KEYS = []
+    # Reformat notes if needed
+    for i in range(len(notes)):
+        if type(notes[i]) == str: notes[i] = {"note": notes[i]}
+    # Decompose notes
+    for i in range(len(notes)):
+        keys_decomposed_current = []
+        note = notes[i]
+        ## Check if track
+        if note["note"] in TRACKS.keys():
+            ### Recursively decompose the track
+            keys_decomposed_current = Note_DecomposeNotesToKeys(TRACKS[note["note"]]["notes"], TRACKS[note["note"]]["common_params"])
+        ## Check if chord
+        else:
+            chord_check = True
+            try:
+                ### Get Notes for the Chord
+                ChordNotes = Chord_GeteNotes_FromShorthand(note["note"])
+                for cni in range(len(ChordNotes)):
+                    cnd = dict(note)
+                    cnd["note"] = ChordNotes[cni] # Set the current note in the chord
+                    if cni > 0: cnd["delay"] = 0 # Only the first note in a chord will have the delay
+                    keys_decomposed_current.append(cnd)
+            except Exception as e:
+                # print("\n\n\n")
+                # print("### CHORD NOT FOUND")
+                # print(note)
+                # # print(e)
+                # print("\n\n\n")
+                chord_check = False
+        ## If nothing, it is a key
+            if not chord_check:
+                ### All keys should have first letter in upper case and all other letters in lower case
+                if len(note["note"]) > 1:
+                    note["note"] = note["note"][:1].upper() + note["note"][1:].lower()
+                ### Remove extra "k" at the end of key
+                note["note"] = note["note"].rstrip("k")
+                ### Append
+                keys_decomposed_current = [note]
+        
+        KEYS.extend(keys_decomposed_current)
+
+    # Resolve Notes with Common Params
+    KEYS = Note_ResolveNotesWithCommonParams(KEYS, common_params)
+
+    return KEYS
+
 # MIDI Functions
 def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
     '''
@@ -81,7 +138,7 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
     Each note should have the keys,
      - "channel" : MIDI channel (taken as 0 if missing)
      - "pitch" (0 - 127) : MIDI pitch value
-     - "key" (MUST be a note) : MIDI key (ignored if pitch is given)
+     - "note" (MUST be a note) : MIDI key (ignored if pitch is given)
      - "octave" (0 - 7) : MIDI octave value (ignored if pitch is given and taken as 4 if missing)
      - "delay" : Delay between the current note and previous note (Must be include duration of previous note to avoid overlapping)
      - "duration" : MIDI note duration (taken as 1 beat if missing)
@@ -99,8 +156,8 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
         cur_time += note["delay"]
         ## Check for missing / invalid note parameters
         if "octave" not in note.keys(): note["octave"] = 4
-        if "pitch" not in note.keys() and "key" in note.keys():
-            note["pitch"] = Note_ToNumber(note["key"], note["octave"])
+        if "pitch" not in note.keys() and "note" in note.keys():
+            note["pitch"] = Note_ToNumber(note["note"], note["octave"])
         if note["pitch"] < 0 and note["pitch"] > 127: continue
         if "channel" not in note.keys(): note["channel"] = 0
         if "duration" not in note.keys(): note["duration"] = 1
@@ -131,3 +188,5 @@ def AudioGen_SaveMIDI(MIDIAudio, save_path="Data/GeneratedAudio/generated_midi.m
 #     note_numbers.append(Note_ToNumber(note, OCTAVE))
 # ## Make MIDI
 # AudioGen_CreateMIDI(note_numbers)
+      
+# print(Chord_GeteNotes_FromShorthand("Dk"))
