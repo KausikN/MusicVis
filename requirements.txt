@@ -5,3 +5,4 @@ mingus
 MIDIUtil
 pretty_midi
 SciPy
+pyFluidSynth
