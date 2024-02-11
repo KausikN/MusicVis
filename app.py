@@ -49,6 +49,24 @@ PATHS = {
 
 # Util Vars
 CACHE = {}
+NOTE_PARAMS_INFO = {
+    "channel": {
+        "type": float
+    }, 
+    "octave": {
+        "type": float
+    }, 
+    "delay": {
+        "type": float
+    }, 
+    "duration": {
+        "type": float
+    }, 
+    "volume": {
+        "type": float
+    }
+}
+NOTE_PARAM_KEYS = list(NOTE_PARAMS_INFO.keys())
 
 # Util Functions
 def LoadCache():
@@ -66,7 +84,43 @@ def SaveCache():
     json.dump(CACHE, open(PATHS["cache"], "w"), indent=4)
 
 # Main Functions
+def NoteCode_Parse(note_code):
+    '''
+    Note Code - Convert note code to note object
+    '''
+    # Remove spaces
+    note_code = note_code.strip().replace(" ", "")
+    # Parse
+    note_data = note_code.split(",")
+    # Required parameters
+    note = {"note": note_data[0]}
+    # Optional parameters
+    for i in range(min(len(note_data)-1, len(NOTE_PARAM_KEYS))):
+        if note_data[i+1] not in ["", "?"]: note[NOTE_PARAM_KEYS[i]] = note_data[i+1]
+    # Convert parameters to proper types
+    for k in NOTE_PARAM_KEYS:
+        if k not in note.keys(): continue
+        note[k] = NOTE_PARAMS_INFO[k]["type"](note[k])
+        ## Special cases
+        ### Convert float to int if decimal part is 0
+        if NOTE_PARAMS_INFO[k]["type"] == float:
+            if note[k] - int(note[k]) == 0.0:
+                note[k] = int(note[k])
 
+    return note
+
+def NoteCode_GetNoteCode(note):
+    '''
+    Note Code - Convert note object to note code
+    '''
+    # If note object is string, return itself
+    if type(note) == str: return str(note)
+    # Form note code
+    note_code = note["note"]
+    params_code = ",".join([str(note[k]) if k in note.keys() else "?" for k in NOTE_PARAM_KEYS])
+    if not (params_code == ""): note_code = note_code + "," + params_code
+
+    return note_code
 
 # UI Functions
 def UI_LoadNotes():
@@ -75,13 +129,7 @@ def UI_LoadNotes():
     # Common Parameters
     USERINPUT_CommonParams = json.loads(st.text_area(
         "Common Note Parameters", height=300,
-        value=json.dumps({
-            "channel": 0,
-            "octave": 4,
-            "delay": 1,
-            "duration": 1,
-            "volume": 100
-        }, indent=8)
+        value=json.dumps(LIBRARIES["PianoMusicGenerator"].TRACKS["default"]["common_params"], indent=8)
     ))
     # Notes
     USERINPUT_NotesLoadMethod = st.selectbox("Load Notes Method", [
@@ -90,19 +138,38 @@ def UI_LoadNotes():
     ])
     USERINPUT_Notes = []
     if USERINPUT_NotesLoadMethod == "Simple Note Code":
-        USERINPUT_NotesKeys = st.text_area("Enter Code (Separated by commas, spaces or new lines) (Denote chords with a extra '_' at the start)", height=300)
-        USERINPUT_Notes = USERINPUT_NotesKeys.replace(",", " ").replace("\n", " ").split()
+        st.markdown(f"""
+        #### Simple Note Code Rules
+        - Notes can be separated only by spaces or new lines (" " or "\\n")
+        - Note is given followed by its parameters all separated by commas (",") only
+            - Order of parameters is {NOTE_PARAM_KEYS}
+            - If you dont want to specify any parameter, simply specify the value as "?"
+                - It will be replaced with the value specified in the common parameters
+            - Eg. _C,?,?,2,2,?
+                - C is the chord
+                - delay is 2
+                - duration is 2
+                - Other parameters are from common parameters
+        - You can not give the commas also and the further missing parameters are specified from common parameters
+            - Eg. _C,1
+                - C is the chord
+                - channel is 1
+                - All other parameters are from common parameters       
+        """)
+        DefaultNotesCode = "\n".join([NoteCode_GetNoteCode(note) for note in LIBRARIES["PianoMusicGenerator"].TRACKS["default"]["notes"]])
+        USERINPUT_NotesKeys = st.text_area(
+            "Enter Code", height=300,
+            value=DefaultNotesCode
+        )
+        USERINPUT_Notes = USERINPUT_NotesKeys.replace("\n", " ").split()
+        USERINPUT_Notes = [NoteCode_Parse(note) for note in USERINPUT_Notes]
     else:
         USERINPUT_Notes = json.loads(st.text_area(
             "Notes", height=300,
-            value=json.dumps([
-                {
-                    "note": ""
-                }
-            ], indent=8)
+            value=json.dumps(LIBRARIES["PianoMusicGenerator"].TRACKS["default"]["notes"], indent=8)
         ))
     ## Decompose notes to keys
-    USERINPUT_Notes = LIBRARIES["PianoMusicGenerator"].Note_DecomposeNotesToKeys(USERINPUT_NotesKeys, common_params=USERINPUT_CommonParams)
+    USERINPUT_Notes = LIBRARIES["PianoMusicGenerator"].Note_DecomposeNotesToKeys(USERINPUT_Notes, common_params=USERINPUT_CommonParams)
 
     OUT = {
         "other_params": {

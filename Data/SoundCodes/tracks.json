@@ -1,4 +1,43 @@
 {
+    "default": {
+        "name": "Default",
+        "desc": "Default Track",
+        "common_params": {
+            "channel": 0,
+            "octave": 4,
+            "delay": 1,
+            "duration": 1,
+            "volume": 100
+        },
+        "notes": [
+            "C",
+            "D",
+            {
+                "note": "Eb"
+            },
+            {
+                "note": "G",
+                "delay": 1,
+                "duration": 2
+            },
+            {
+                "note": "Bb",
+                "channel": 1,
+                "octave": 2,
+                "delay": 1,
+                "duration": 2,
+                "volume": 50
+            },
+            {
+                "note": "B",
+                "channel": 1,
+                "octave": 3,
+                "delay": 0.5,
+                "duration": 2,
+                "volume": 25
+            }
+        ]
+    },
     "counting_stars": {
         "name": "Counting Stars",
         "desc": "Counting Stars - One Republic",

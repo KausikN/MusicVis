@@ -6,7 +6,7 @@ References:
 """
 
 # Imports
-from mingus.core import chords
+from mingus.core import chords as LIBRARY_CHORDS, notes as LIBRARY_NOTES, keys as LIBRARY_KEYS
 from midiutil import MIDIFile
 
 # Main Vars
@@ -16,12 +16,12 @@ NOTES_ACCIDENTALS_MAP = {
     "Db": "C#",
     "D#": "Eb",
     "E#": "F",
+    "Fb": "E",
     "Gb": "F#",
     "G#": "Ab",
     "A#": "Bb",
     "B#": "C",
-    # Rare Accidentals
-    "F##": "G",
+    "Cb": "B"
 }
 OCTAVES = list(range(11))
 NOTES_IN_OCTAVE = len(AVAILABLE_NOTES)
@@ -34,7 +34,7 @@ def Chord_GeteNotes_FromShorthand(chord_shorthand):
     '''
     Chord - Get Notes for the given chord written in shorthand notation
     '''
-    return chords.from_shorthand(chord_shorthand)
+    return LIBRARY_CHORDS.from_shorthand(chord_shorthand)
 
 ## Note Functions
 def Note_SwapAccidentals(note):
@@ -49,7 +49,6 @@ def Note_ToNumber(note, octave=4):
     Note - Convert note to number
     '''
     try:
-        note = Note_SwapAccidentals(note)
         note = AVAILABLE_NOTES.index(note)
         note += (NOTES_IN_OCTAVE * octave)
     except ValueError:
@@ -117,8 +116,10 @@ def Note_DecomposeNotesToKeys(notes, common_params={}):
                 ### All keys should have first letter in upper case and all other letters in lower case
                 if len(note["note"]) > 1:
                     note["note"] = note["note"][:1].upper() + note["note"][1:].lower()
-                # ### Remove extra "k" at the end of key
-                # note["note"] = note["note"].rstrip("k")
+                ### Clean redundant, extra and wrong accidentals
+                note["note"] = LIBRARY_NOTES.remove_redundant_accidentals(note["note"])
+                note["note"] = LIBRARY_NOTES.reduce_accidentals(note["note"])
+                note["note"] = Note_SwapAccidentals(note["note"])
                 ### Append
                 keys_decomposed_current = [note]
         
@@ -166,13 +167,21 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
         if "channel" not in note.keys(): note["channel"] = 0
         if "duration" not in note.keys(): note["duration"] = 1
         if "volume" not in note.keys(): note["volume"] = 100
-        ## Add note if valid pitch
+        ## Add note if valid pitch (If not valid, make pitch as 0)
         # print(note)
+        if note["pitch"] < 0 or note["pitch"] > 255: note["pitch"] = 0
         MIDIAudio.addNote(track, note["channel"], note["pitch"], cur_time, note["duration"], note["volume"])
 
     return MIDIAudio
 
 ## Audio Generator Functions
+# def AudioGen_LoadMIDI(path="Data/GeneratedAudio/generated_midi.mid"):
+#     '''
+#     Audio Generator - Load MIDI file
+#     '''
+#     with open(path, "rb") as midi_file:
+#         MIDIAudio = 
+
 def AudioGen_SaveMIDI(MIDIAudio, save_path="Data/GeneratedAudio/generated_midi.mid"):
     '''
     Audio Generator - Save MIDI file
@@ -180,18 +189,5 @@ def AudioGen_SaveMIDI(MIDIAudio, save_path="Data/GeneratedAudio/generated_midi.m
     with open(save_path, "wb") as output_file:
         MIDIAudio.writeFile(output_file)
 
-# RunCode
-# ## Params
-# OCTAVE = 4
-# chord_progression = ["Cmaj7", "Fmaj7"]
-# ## Convert to Note Numbers
-# note_letters = []
-# for chord in chord_progression:
-#     note_letters.extend(chords.from_shorthand(chord))
-# note_numbers = []
-# for note in note_letters:
-#     note_numbers.append(Note_ToNumber(note, OCTAVE))
-# ## Make MIDI
-# AudioGen_CreateMIDI(note_numbers)
-      
+# RunCode      
 # print(Chord_GeteNotes_FromShorthand("Dk"))
