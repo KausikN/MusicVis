@@ -2,7 +2,7 @@ streamlit
 opencv-python-headless
 
 pyFluidSynth
-# fluidsynth
+fluidsynth
 
 mingus
 MIDIUtil

@@ -129,7 +129,7 @@ def UI_LoadNotes():
     # Common Parameters
     USERINPUT_CommonParams = json.loads(st.text_area(
         "Common Note Parameters", height=300,
-        value=json.dumps(LIBRARIES["PianoMusicGenerator"].TRACKS["default"]["common_params"], indent=8)
+        value=json.dumps(LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["common_params"], indent=8)
     ))
     # Notes
     USERINPUT_NotesLoadMethod = st.selectbox("Load Notes Method", [
@@ -154,9 +154,12 @@ def UI_LoadNotes():
             - Eg. _C,1
                 - C is the chord
                 - channel is 1
-                - All other parameters are from common parameters       
+                - All other parameters are from common parameters
         """)
-        DefaultNotesCode = "\n".join([NoteCode_GetNoteCode(note) for note in LIBRARIES["PianoMusicGenerator"].TRACKS["default"]["notes"]])
+        note_params_keys_format_text = "{note_name}," + ",".join(["{" + k + "}" for k in NOTE_PARAM_KEYS])
+        st.markdown("Note Code Format:")
+        st.markdown("```shell\n" + note_params_keys_format_text + "\n```")
+        DefaultNotesCode = "\n".join([NoteCode_GetNoteCode(note) for note in LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["notes"]])
         USERINPUT_NotesKeys = st.text_area(
             "Enter Code", height=300,
             value=DefaultNotesCode
@@ -166,10 +169,18 @@ def UI_LoadNotes():
     else:
         USERINPUT_Notes = json.loads(st.text_area(
             "Notes", height=300,
-            value=json.dumps(LIBRARIES["PianoMusicGenerator"].TRACKS["default"]["notes"], indent=8)
+            value=json.dumps(LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["notes"], indent=8)
         ))
     ## Decompose notes to keys
-    USERINPUT_Notes = LIBRARIES["PianoMusicGenerator"].Note_DecomposeNotesToKeys(USERINPUT_Notes, common_params=USERINPUT_CommonParams)
+    USERINPUT_Notes = LIBRARIES["MusicGenerator"]["Piano"].Note_DecomposeNotesToKeys(USERINPUT_Notes, common_params=USERINPUT_CommonParams)
+    ## Display notes MIDI as Plot
+    NOTE_VALUE_NAME_MAP = {
+        v: LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES[((v-LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[0]) % LIBRARIES["MusicGenerator"]["Piano"].NOTES_IN_OCTAVE)]
+        for v in range(LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[0], LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[1]+1)
+    }
+    USERINPUT_Notes_KnownOnly = [note for note in USERINPUT_Notes if note["value"] >= 0]
+    MIDI_FIG = LIBRARIES["Visualisers"]["MIDIPlot"].MIDIPlot_PlotNotes_HBar(USERINPUT_Notes_KnownOnly, note_value_name_map=NOTE_VALUE_NAME_MAP)
+    st.pyplot(MIDI_FIG)
 
     OUT = {
         "other_params": {
@@ -186,13 +197,13 @@ def basic_piano_sequencer():
     st.header("Basic Piano Sequencer")
 
     # Prereq Loaders
-    LIBRARIES["PianoMusicGenerator"].CHORDS = json.load(open(PATHS["chords"], "r"))
-    LIBRARIES["PianoMusicGenerator"].TRACKS = json.load(open(PATHS["tracks"], "r"))
+    LIBRARIES["MusicGenerator"]["Piano"].CHORDS = json.load(open(PATHS["chords"], "r"))
+    LIBRARIES["MusicGenerator"]["Piano"].TRACKS = json.load(open(PATHS["tracks"], "r"))
 
     # Load Inputs
     st.markdown("## Piano Info")
     st.markdown("### Keys")
-    st.markdown("```\n" + ", ".join(LIBRARIES["PianoMusicGenerator"].AVAILABLE_NOTES) + "\n```")
+    st.markdown("```\n" + ", ".join(LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES) + "\n```")
 
     st.markdown("## Inputs")
     USERINPUT_Inputs = UI_LoadNotes()
@@ -205,13 +216,13 @@ def basic_piano_sequencer():
     ## Resolve Notes
     NOTES = USERINPUT_Inputs["notes"]
     ## Add track
-    MIDIAudio = LIBRARIES["PianoMusicGenerator"].MIDI_AddTrack(
+    MIDIAudio = LIBRARIES["MusicGenerator"]["Piano"].MIDI_AddTrack(
         NOTES, 
         track=0, start_time=0, 
         tempo=USERINPUT_Inputs["other_params"]["tempo"]
     )
     ## Create audio file
-    LIBRARIES["PianoMusicGenerator"].AudioGen_SaveMIDI(MIDIAudio, save_path=PATHS["midi_save_path"])
+    LIBRARIES["MusicGenerator"]["Piano"].AudioGen_SaveMIDI(MIDIAudio, save_path=PATHS["midi_save_path"])
     # Display Outputs
     st.markdown("## Piano Music")
     Utils_MIDI2WAV(PATHS["midi_save_path"], PATHS["wav_save_path"])

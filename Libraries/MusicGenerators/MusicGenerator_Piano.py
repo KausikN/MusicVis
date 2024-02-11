@@ -1,5 +1,5 @@
 """
-Piano Music Generator Library
+Music Generator Library - Piano
 
 References:
  - https://medium.com/@stevehiehn/how-to-generate-music-with-python-the-basics-62e8ea9b99a5
@@ -23,8 +23,9 @@ NOTES_ACCIDENTALS_MAP = {
     "B#": "C",
     "Cb": "B"
 }
-OCTAVES = list(range(11))
 NOTES_IN_OCTAVE = len(AVAILABLE_NOTES)
+OCTAVES = list(range(NOTES_IN_OCTAVE-1))
+NOTE_VALUE_RANGE = [0, 127]
 CHORDS = {}
 TRACKS = {}
 
@@ -127,6 +128,9 @@ def Note_DecomposeNotesToKeys(notes, common_params={}):
 
     # Resolve Notes with Common Params
     KEYS = Note_ResolveNotesWithCommonParams(KEYS, common_params)
+    # Add note number as value parameter for all notes
+    for i in range(len(KEYS)):
+        KEYS[i]["value"] = Note_ToNumber(KEYS[i]["note"], KEYS[i]["octave"])
 
     return KEYS
 
@@ -161,8 +165,10 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
         cur_time += note["delay"]
         ## Check for missing / invalid note parameters
         if "octave" not in note.keys(): note["octave"] = 4
-        if "pitch" not in note.keys() and "note" in note.keys():
-            note["pitch"] = Note_ToNumber(note["note"], note["octave"])
+        if "pitch" not in note.keys():
+            if "value" in note.keys(): note["pitch"] = note["value"]
+            elif "note" in note.keys(): note["pitch"] = Note_ToNumber(note["note"], note["octave"])
+            else: note["pitch"] = -1
         if note["pitch"] < 0 and note["pitch"] > 127: continue
         if "channel" not in note.keys(): note["channel"] = 0
         if "duration" not in note.keys(): note["duration"] = 1
