@@ -2,7 +2,7 @@
 Music Generator Library - Piano
 
 References:
- - https://medium.com/@stevehiehn/how-to-generate-music-with-python-the-basics-62e8ea9b99a5
+- https://medium.com/@stevehiehn/how-to-generate-music-with-python-the-basics-62e8ea9b99a5
 """
 
 # Imports
@@ -106,11 +106,7 @@ def Note_DecomposeNotesToKeys(notes, common_params={}):
                         keys_decomposed_current.append(cnd)
                     chord_check = True
                 except Exception as e:
-                    # print("\n\n\n")
-                    # print("### CHORD NOT FOUND")
-                    # print(note)
-                    # # print(e)
-                    # print("\n\n\n")
+                    # print(e)
                     pass
         ## If nothing, it is a key
             if not chord_check:
@@ -165,14 +161,18 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
         cur_time += note["delay"]
         ## Check for missing / invalid note parameters
         if "octave" not in note.keys(): note["octave"] = 4
+        else: note["octave"] = int(note["octave"])
         if "pitch" not in note.keys():
             if "value" in note.keys(): note["pitch"] = note["value"]
             elif "note" in note.keys(): note["pitch"] = Note_ToNumber(note["note"], note["octave"])
             else: note["pitch"] = -1
         if note["pitch"] < 0 and note["pitch"] > 127: continue
         if "channel" not in note.keys(): note["channel"] = 0
+        else: note["channel"] = int(note["channel"])
         if "duration" not in note.keys(): note["duration"] = 1
+        else: note["duration"] = float(note["duration"])
         if "volume" not in note.keys(): note["volume"] = 100
+        else: note["volume"] = int(note["volume"])
         ## Add note if valid pitch (If not valid, make pitch as 0)
         # print(note)
         if note["pitch"] < 0 or note["pitch"] > 255: note["pitch"] = 0

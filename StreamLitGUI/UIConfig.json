@@ -6,5 +6,5 @@
 
     "PROJECT_README": "README.md",
 
-    "PROJECT_MODES": ["Basic Piano Sequencer"]
+    "PROJECT_MODES": ["Basic Piano Sequencer", "Piano Music Generator"]
 }

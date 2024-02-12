@@ -63,8 +63,9 @@ def MIDIPlot_PlotNotes_HBar(notes, note_value_name_map=None, note_value_color_ma
     plt.xlabel("Time (seconds)")
     plt.ylabel("Notes")
     plt.yticks(list(range(len(VALUE_NAMES))), VALUE_NAMES)
-    plt.barh(np.array(Y), width=np.array(X_width), left=np.array(X_left), color=X_color)
+    AX = plt.barh(np.array(Y), width=np.array(X_width), left=np.array(X_left), color=X_color)
     plt.grid(True, linestyle="--")
+    ## Close figure
     plt.close()
 
     return FIG
