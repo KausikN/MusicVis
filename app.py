@@ -44,13 +44,14 @@ def HomePage():
 # Repo Based Vars
 PATHS = {
     "cache": "StreamLitGUI/CacheData/Cache.json",
-    "midi_save_path": "Data/GeneratedAudio/generated_midi.mid",
-    "wav_save_path": "Data/GeneratedAudio/generated_wav.wav",
+    "midi_save_path": "Data/GeneratedAudio/generated_midi_{track}.mid",
+    "wav_save_path": "Data/GeneratedAudio/generated_wav_{track}.wav",
     "chords": "Data/SoundCodes/chords.json",
     "tracks": "Data/SoundCodes/tracks.json",
     "temp": {
-        "audio": "Data/Temp/audio.wav",
-        "video": "Data/Temp/video.mp4"
+        "audio": "Data/Temp/audio_{track}.wav",
+        "video": "Data/Temp/video_{track}.mp4",
+        "midi": "Data/Temp/midi.mid"
     }
 }
 
@@ -142,82 +143,99 @@ def NoteCode_GetNoteCode(note):
     return note_code
 
 # UI Functions
-def UI_LoadNotes(USERINPUT_Notes=None):
+def UI_PianoInfo():
+    st.markdown("## Piano Info")
+    with st.expander("### Keys", expanded=True):
+        st.markdown("```\n" + ", ".join(LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES) + "\n```")
+    with st.expander("### Simple Note Code Rules"):
+        st.markdown(f"""
+        - Notes can be separated only by spaces or new lines (" " or "\\n")
+        - Note is given followed by its parameters all separated by commas (",") only
+            - Order of parameters is {NOTE_PARAM_KEYS}
+            - If you dont want to specify any parameter, simply specify the value as "?"
+                - It will be replaced with the value specified in the common parameters
+            - Eg. _C,?,?,2,2,?
+                - C is the chord
+                - delay is 2
+                - duration is 2
+                - Other parameters are from common parameters
+        - You can not give the commas also and the further missing parameters are specified from common parameters
+            - Eg. _C,1
+                - C is the chord
+                - channel is 1
+                - All other parameters are from common parameters
+        """)
+    with st.expander("### Note Code Format", expanded=True):
+        note_params_keys_format_text = "{note_name}," + ",".join(["{" + k + "}" for k in NOTE_PARAM_KEYS])
+        st.markdown("```shell\n" + note_params_keys_format_text + "\n```")
+
+def UI_LoadNotes(USERINPUT_Tracks_Notes=[], editable=False):
     '''
     UI - Load Notes
     '''
     # Basic inputs
-    USERINPUT_tempo = st.number_input("Tempo", min_value=1, value=60)
-    # Common Parameters
-    USERINPUT_CommonParams = json.loads(st.text_area(
-        "Common Note Parameters", height=300,
-        value=json.dumps(LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["common_params"], indent=8)
-    ))
-    # Notes
-    if USERINPUT_Notes is None:
-        USERINPUT_NotesLoadMethod = st.selectbox("Load Notes Method", [
-            "Simple Note Code",
-            "JSON"
-        ])
-        USERINPUT_Notes = []
-        if USERINPUT_NotesLoadMethod == "Simple Note Code":
-            st.markdown(f"""
-            #### Simple Note Code Rules
-            - Notes can be separated only by spaces or new lines (" " or "\\n")
-            - Note is given followed by its parameters all separated by commas (",") only
-                - Order of parameters is {NOTE_PARAM_KEYS}
-                - If you dont want to specify any parameter, simply specify the value as "?"
-                    - It will be replaced with the value specified in the common parameters
-                - Eg. _C,?,?,2,2,?
-                    - C is the chord
-                    - delay is 2
-                    - duration is 2
-                    - Other parameters are from common parameters
-            - You can not give the commas also and the further missing parameters are specified from common parameters
-                - Eg. _C,1
-                    - C is the chord
-                    - channel is 1
-                    - All other parameters are from common parameters
-            """)
-            note_params_keys_format_text = "{note_name}," + ",".join(["{" + k + "}" for k in NOTE_PARAM_KEYS])
-            st.markdown("Note Code Format:")
-            st.markdown("```shell\n" + note_params_keys_format_text + "\n```")
-            DefaultNotesCode = "\n".join([NoteCode_GetNoteCode(note) for note in LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["notes"]])
-            USERINPUT_NotesKeys = st.text_area(
-                "Enter Code", height=300,
-                value=DefaultNotesCode
+    USERINPUT_tempo = st.number_input("Tempo", min_value=1, value=60, disabled=True)
+    USERINPUT_NTracks = st.number_input("Tracks", min_value=1, max_value=5, value=max(1, len(USERINPUT_Tracks_Notes)), disabled=not editable)
+    OUT = []
+    # Iterate over tracks
+    TRACK_COLS = st.columns(USERINPUT_NTracks)
+    for t in range(USERINPUT_NTracks):
+        st_track = TRACK_COLS[t]
+        USERINPUT_Notes = USERINPUT_Tracks_Notes[t] if t < len(USERINPUT_Tracks_Notes) else None
+        # Common Parameters
+        USERINPUT_CommonParams = json.loads(st_track.text_area(
+            "Common Note Parameters", height=300,
+            value=json.dumps(LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["common_params"], indent=8),
+            key=f"CommonParams_{t}"
+        ))
+        # Notes
+        if USERINPUT_Notes is None:
+            USERINPUT_NotesLoadMethod = st_track.selectbox(
+                "Load Notes Method", 
+                ["Simple Note Code", "JSON"],
+                key=f"NotesLoadMethod_{t}"
             )
-            USERINPUT_Notes = USERINPUT_NotesKeys.replace("\n", " ").split()
-            USERINPUT_Notes = [NoteCode_Parse(note) for note in USERINPUT_Notes]
-        else:
-            USERINPUT_Notes = json.loads(st.text_area(
-                "Notes", height=300,
-                value=json.dumps(LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["notes"], indent=8)
-            ))
-    ## Display Notes JSON
-    st.markdown(f"Input Notes ({len(USERINPUT_Notes)})")
-    st.json(USERINPUT_Notes, expanded=False)
-    ## Decompose notes to keys
-    USERINPUT_Notes = LIBRARIES["MusicGenerator"]["Piano"].Note_DecomposeNotesToKeys(USERINPUT_Notes, common_params=USERINPUT_CommonParams)
-    ## Display Notes JSON
-    st.markdown(f"Decomposed Notes ({len(USERINPUT_Notes)})")
-    st.json(USERINPUT_Notes, expanded=False)
-    ## Display notes MIDI as Plot
-    NOTE_VALUE_NAME_MAP = {
-        v: LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES[((v-LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[0]) % LIBRARIES["MusicGenerator"]["Piano"].NOTES_IN_OCTAVE)]
-        for v in range(LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[0], LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[1]+1)
-    }
-    USERINPUT_Notes_KnownOnly = [note for note in USERINPUT_Notes if note["value"] >= 0]
-    MIDI_FIG = LIBRARIES["Visualisers"]["MIDIPlot"].MIDIPlot_PlotNotes_HBar(USERINPUT_Notes_KnownOnly, note_value_name_map=NOTE_VALUE_NAME_MAP)
-    st.pyplot(MIDI_FIG)
+            USERINPUT_Notes = []
+            if USERINPUT_NotesLoadMethod == "Simple Note Code":
+                DefaultNotesCode = "\n".join([NoteCode_GetNoteCode(note) for note in LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["notes"]])
+                USERINPUT_NotesKeys = st_track.text_area(
+                    "Enter Code", height=300,
+                    value=DefaultNotesCode,
+                    key=f"NotesKeys_{t}"
+                )
+                USERINPUT_Notes = USERINPUT_NotesKeys.replace("\n", " ").split()
+                USERINPUT_Notes = [NoteCode_Parse(note) for note in USERINPUT_Notes]
+            else:
+                USERINPUT_Notes = json.loads(st_track.text_area(
+                    "Notes", height=300,
+                    value=json.dumps(LIBRARIES["MusicGenerator"]["Piano"].TRACKS["default"]["notes"], indent=8),
+                    key=f"Notes_{t}"
+                ))
+        ## Display Notes JSON
+        st_track.markdown(f"Input Notes ({len(USERINPUT_Notes)})")
+        st_track.json(USERINPUT_Notes, expanded=False)
+        ## Decompose notes to keys
+        USERINPUT_Notes = LIBRARIES["MusicGenerator"]["Piano"].Note_DecomposeNotesToKeys(USERINPUT_Notes, common_params=USERINPUT_CommonParams)
+        ## Display Notes JSON
+        st_track.markdown(f"Decomposed Notes ({len(USERINPUT_Notes)})")
+        st_track.json(USERINPUT_Notes, expanded=False)
+        ## Display notes MIDI as Plot
+        NOTE_VALUE_NAME_MAP = {
+            v: LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES[((v-LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[0]) % LIBRARIES["MusicGenerator"]["Piano"].NOTES_IN_OCTAVE)]
+            for v in range(LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[0], LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[1]+1)
+        }
+        USERINPUT_Notes_KnownOnly = [note for note in USERINPUT_Notes if note["value"] >= 0]
+        MIDI_FIG = LIBRARIES["Visualisers"]["MIDIPlot"].MIDIPlot_PlotNotes_HBar(USERINPUT_Notes_KnownOnly, note_value_name_map=NOTE_VALUE_NAME_MAP)
+        st_track.pyplot(MIDI_FIG)
+        TRACK_OUT = {
+            "other_params": {
+                "tempo": USERINPUT_tempo
+            },
+            "notes": USERINPUT_Notes
+        }
+        # print("\n\nTRACK", t, ":", json.dumps(OUT, indent=4), "\n\n")
+        OUT.append(TRACK_OUT)
 
-    OUT = {
-        "other_params": {
-            "tempo": USERINPUT_tempo
-        },
-        "notes": USERINPUT_Notes
-    }
-    # print("\n\n", json.dumps(OUT, indent=4), "\n\n")
     return OUT
 
 def UI_NoteGenerator_RandomSequence_LoadEnvUpdateFunc(POSSIBLE_NOTES):
@@ -230,7 +248,7 @@ def UI_NoteGenerator_RandomSequence_LoadEnvUpdateFunc(POSSIBLE_NOTES):
     # Enter params
     if USERINPUT_EnvUpdateFuncName == "Constant Random Distribution":
         ## Get Probability Distribution
-        PROB_DIST = {n: round(1.0/len(POSSIBLE_NOTES), 2) for n in POSSIBLE_NOTES}
+        PROB_DIST = {n: 1 for n in POSSIBLE_NOTES}
         PROB_DIST = json.loads(st.text_area(
             "Enter probability distribution", height=300,
             value=json.dumps(PROB_DIST, indent=8)
@@ -259,7 +277,7 @@ def UI_NoteGenerator_RandomSequence_LoadEnvUpdateFunc(POSSIBLE_NOTES):
                     }
                 elif NOTE_PARAMS_INFO[pk]["gen_data"]["type"] == "selection":
                     POSSIBLE_OPTIONS = NOTE_PARAMS_INFO[pk]["gen_data"]["options"]
-                    options_prob_dist = {str(n): round(1.0/len(POSSIBLE_OPTIONS), 2) for n in POSSIBLE_OPTIONS}
+                    options_prob_dist = {str(n): 1 for n in POSSIBLE_OPTIONS}
                     options_prob_dist = json.loads(st.text_area(
                         f"{pk} probability distribution", height=300,
                         value=json.dumps(options_prob_dist, indent=8)
@@ -292,7 +310,7 @@ def UI_NoteGenerator_RandomSequence_LoadEnvUpdateFunc(POSSIBLE_NOTES):
     
     return USERINPUT_EnvUpdateFunc
 
-def UI_NoteVisualiser(NOTES, UNIQUE_NOTES, audio_path):
+def UI_NoteVisualiser(TRACKS_NOTES, UNIQUE_NOTES, TRACKS_audio_paths):
     '''
     UI - Note Visualiser
     '''
@@ -312,13 +330,18 @@ def UI_NoteVisualiser(NOTES, UNIQUE_NOTES, audio_path):
         if not USERINPUT_Process: USERINPUT_Process = st.button("Visualise")
         if not USERINPUT_Process: st.stop()
         # Visualise
-        NOTES_FRAMES = LIBRARIES["Visualisers"]["CircleBouncer"].CircleBouncer_VisualiseNotes(
-            NOTES, UNIQUE_NOTES, show_text=USERINPUT_ShowText
-        )
-        LIBRARIES["Visualisers"]["CircleBouncer"].VideoUtils_SaveVisualisationVideo(
-            NOTES, NOTES_FRAMES, audio_path, PATHS["temp"]["video"]
-        )
-        st.video(PATHS["temp"]["video"])
+        TRACK_COLS = st.columns(len(TRACKS_NOTES))
+        for t in range(len(TRACKS_NOTES)):
+            st_track = TRACK_COLS[t]
+            audio_path = TRACKS_audio_paths[t]
+            NOTES = TRACKS_NOTES[t]
+            NOTES_FRAMES = LIBRARIES["Visualisers"]["CircleBouncer"].CircleBouncer_VisualiseNotes(
+                NOTES, UNIQUE_NOTES, show_text=USERINPUT_ShowText, colors=USERINPUT_Colors
+            )
+            LIBRARIES["Visualisers"]["CircleBouncer"].VideoUtils_SaveVisualisationVideo(
+                NOTES, NOTES_FRAMES, audio_path, PATHS["temp"]["video"]
+            )
+            st_track.video(PATHS["temp"]["video"])
     else:
         pass
 
@@ -332,32 +355,69 @@ def basic_piano_sequencer():
     LIBRARIES["MusicGenerator"]["Piano"].TRACKS = json.load(open(PATHS["tracks"], "r"))
 
     # Load Inputs
-    st.markdown("## Piano Info")
-    st.markdown("### Keys")
-    st.markdown("```\n" + ", ".join(LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES) + "\n```")
-
+    UI_PianoInfo()
     st.markdown("## Inputs")
-    USERINPUT_Inputs = UI_LoadNotes()
+    USERINPUT_InputTracks_Notes = []
+    USERINPUT_MIDIFile = st.file_uploader("Upload MIDI File", type="mid")
+    if USERINPUT_MIDIFile is not None:
+        os.makedirs(os.path.dirname(PATHS["temp"]["midi"]), exist_ok=True)
+        open(PATHS["temp"]["midi"], "wb").write(USERINPUT_MIDIFile.read())
+        USERINPUT_MIDIFile = LIBRARIES["MusicGenerator"]["Piano"].AudioGen_LoadMIDI(PATHS["temp"]["midi"])
+        USERINPUT_InputTracks_Notes = LIBRARIES["MusicGenerator"]["Piano"].MIDI_ExtractNotes(USERINPUT_MIDIFile)
+    st.json(USERINPUT_InputTracks_Notes)
+    USERINPUT_Tracks_Inputs = UI_LoadNotes(USERINPUT_InputTracks_Notes, editable=True)
 
     # Process Check
     USERINPUT_Process = st.checkbox("Stream Process", value=False)
     if not USERINPUT_Process: USERINPUT_Process = st.button("Process")
     if not USERINPUT_Process: st.stop()
     # Process Inputs
-    ## Resolve Notes
-    NOTES = USERINPUT_Inputs["notes"]
-    ## Add track
-    MIDIAudio = LIBRARIES["MusicGenerator"]["Piano"].MIDI_AddTrack(
-        NOTES, 
-        track=0, start_time=0, 
-        tempo=USERINPUT_Inputs["other_params"]["tempo"]
-    )
-    ## Create audio file
-    LIBRARIES["MusicGenerator"]["Piano"].AudioGen_SaveMIDI(MIDIAudio, save_path=PATHS["midi_save_path"])
+    TRACKS_DATA = {
+        "notes": [],
+        "audio_paths": [],
+        "midi_audios": []
+    }
+    MIDIAudio_Combined = LIBRARIES["MusicGenerator"]["Piano"].MIDIFile(len(USERINPUT_Tracks_Inputs))
+    TRACK_COLS = st.columns(len(USERINPUT_Tracks_Inputs))
+    for t in range(len(USERINPUT_Tracks_Inputs)):
+        st_track = TRACK_COLS[t]
+        USERINPUT_Inputs = USERINPUT_Tracks_Inputs[t]
+        ## Resolve Notes
+        NOTES = USERINPUT_Inputs["notes"]
+        ## Add track
+        MIDIAudio = LIBRARIES["MusicGenerator"]["Piano"].MIDI_AddTrack(
+            NOTES, 
+            track=0, start_time=0, 
+            tempo=USERINPUT_Inputs["other_params"]["tempo"]
+        )
+        MIDIAudio_Combined = LIBRARIES["MusicGenerator"]["Piano"].MIDI_AddTrack(
+            NOTES, MIDIAudio=MIDIAudio_Combined, 
+            track=t, start_time=0, 
+            tempo=USERINPUT_Inputs["other_params"]["tempo"]
+        )
+        ## Create audio file
+        LIBRARIES["MusicGenerator"]["Piano"].AudioGen_SaveMIDI(MIDIAudio, save_path=PATHS["midi_save_path"].format(track=t))
+        # Display Track Outputs
+        st_track.markdown("## Track")
+        audio_path = PATHS["wav_save_path"].format(track=t)
+        Utils_MIDI2WAV(PATHS["midi_save_path"].format(track=t), audio_path)
+        st_track.audio(audio_path)
+        TRACKS_DATA["notes"].append(NOTES)
+        TRACKS_DATA["audio_paths"].append(audio_path)
+        TRACKS_DATA["midi_audios"].append(MIDIAudio)
+    ## Merge tracks into one MIDI file
+    # MIDIAudio_Combined = LIBRARIES["MusicGenerator"]["Piano"].MIDI_CombineMIDIAudios(TRACKS_DATA["midi_audios"])
+    LIBRARIES["MusicGenerator"]["Piano"].AudioGen_SaveMIDI(MIDIAudio_Combined, save_path=PATHS["midi_save_path"].format(track="combined"))
     # Display Outputs
     st.markdown("## Piano Music")
-    Utils_MIDI2WAV(PATHS["midi_save_path"], PATHS["wav_save_path"])
-    st.audio(PATHS["wav_save_path"])
+    audio_path_combined = PATHS["wav_save_path"].format(track="combined")
+    Utils_MIDI2WAV(PATHS["midi_save_path"].format(track="combined"), audio_path_combined)
+    st.audio(audio_path_combined)
+    # Visualise Outputs
+    st.markdown("## Visualisations")
+    UI_NoteVisualiser(
+        TRACKS_DATA["notes"], LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES, TRACKS_DATA["audio_paths"]
+    )
 
 def piano_music_generator():
     # Title
@@ -379,10 +439,7 @@ def piano_music_generator():
         MAPS["value_name"][i] = POSSIBLE_NOTES[i]
 
     # Load Inputs
-    st.markdown("## Piano Info")
-    st.markdown("### Keys")
-    st.markdown("```\n" + ", ".join(LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES) + "\n```")
-
+    UI_PianoInfo()
     st.markdown("## Inputs")
     ## Notes Count
     USERINPUT_NotesCount = st.number_input("Number of Notes", 1, 100, 5)
@@ -408,7 +465,9 @@ def piano_music_generator():
     ## Generate Notes
     NOTES_DATA = USERINPUT_NoteGenFunc(USERINPUT_NotesCount)
     NOTES = NOTES_DATA["notes"]
-    USERINPUT_Inputs = UI_LoadNotes(NOTES)
+    TRACKS_NOTES = [NOTES]
+    USERINPUT_Inputs = UI_LoadNotes(TRACKS_NOTES, editable=False)
+    USERINPUT_Inputs = USERINPUT_Inputs[0]
 
     # Process Check
     USERINPUT_Process = st.checkbox("Stream Process", value=False)
@@ -431,7 +490,9 @@ def piano_music_generator():
     st.audio(PATHS["wav_save_path"])
     # Visualise Outputs
     st.markdown("## Visualisations")
-    UI_NoteVisualiser(NOTES, LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES, PATHS["wav_save_path"])
+    UI_NoteVisualiser(
+        [NOTES], LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES, [PATHS["wav_save_path"]]
+    )
     
 #############################################################################################################################
 # Driver Code

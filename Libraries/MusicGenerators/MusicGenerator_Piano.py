@@ -8,6 +8,7 @@ References:
 # Imports
 import os
 from midiutil import MIDIFile
+from mido import MidiFile as MidiFile_Read, Message, MetaMessage
 from mingus.core import chords as LIBRARY_CHORDS, notes as LIBRARY_NOTES, keys as LIBRARY_KEYS
 
 # Main Vars
@@ -55,6 +56,17 @@ def Note_ToNumber(note, octave=4):
         note += (NOTES_IN_OCTAVE * octave)
     except ValueError:
         note = -1
+
+    return note
+
+def Note_FromNumber(number):
+    '''
+    Note - Convert number to note
+    '''
+    note = {
+        "note": AVAILABLE_NOTES[number % NOTES_IN_OCTAVE],
+        "octave": int(number // NOTES_IN_OCTAVE)
+    }
 
     return note
 
@@ -180,19 +192,57 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=60):
         if "volume" not in note.keys(): note["volume"] = 100
         else: note["volume"] = int(note["volume"])
         ## Add note if valid pitch (If not valid, make pitch as 0)
-        # print(note)
         if note["pitch"] < 0 or note["pitch"] > 255: note["pitch"] = 0
         MIDIAudio.addNote(track, note["channel"], note["pitch"], cur_time, note["duration"], note["volume"])
 
     return MIDIAudio
 
+def MIDI_ExtractNotes(MIDIAudio):
+    '''
+    MIDI - Extract Notes from MIDI Audio Object
+    '''
+    # Init
+    TRACKS = MIDIAudio.tracks
+    NOTES = []
+    # For each track, extract notes
+    for track in TRACKS:
+        MESSAGES = [message for message in track if isinstance(message, Message)]
+        if len(MESSAGES) == 0: continue
+        track_notes = []
+        cur_time = 0
+        cur_delay = 0
+        for message in MESSAGES:
+            cur_time += message.time/1000
+            cur_delay += message.time/1000
+            if message.type == "note_on":
+                cur_note = Note_FromNumber(message.note)
+                track_notes.append({
+                    "note": cur_note["note"],
+                    "delay": cur_delay,
+                    "duration": None,
+                    "octave": cur_note["octave"],
+                    "volume": message.velocity,
+                    "channel": message.channel,
+                    "value": message.note,
+                    "start_time": cur_time
+                })
+                cur_delay = 0
+            elif message.type == "note_off":
+                for i in range(len(track_notes)):
+                    if track_notes[i]["duration"] is None and message.note == track_notes[i]["value"]:
+                        track_notes[i]["duration"] = cur_time - track_notes[i].pop("start_time")
+        if len(track_notes) > 0: NOTES.append(track_notes)
+
+    return NOTES
+
 ## Audio Generator Functions
-# def AudioGen_LoadMIDI(path="Data/GeneratedAudio/generated_midi.mid"):
-#     '''
-#     Audio Generator - Load MIDI file
-#     '''
-#     with open(path, "rb") as midi_file:
-#         MIDIAudio = 
+def AudioGen_LoadMIDI(path="Data/GeneratedAudio/generated_midi.mid"):
+    '''
+    Audio Generator - Load MIDI file
+    '''
+    MIDIAudio = MidiFile_Read(path)
+
+    return MIDIAudio
 
 def AudioGen_SaveMIDI(MIDIAudio, save_path="Data/GeneratedAudio/generated_midi.mid"):
     '''
@@ -204,3 +254,5 @@ def AudioGen_SaveMIDI(MIDIAudio, save_path="Data/GeneratedAudio/generated_midi.m
 
 # RunCode
 # print(Chord_GetNotes_FromShorthand("Dk"))
+# MIDIAudio = AudioGen_LoadMIDI("Data/GeneratedAudio/generated_midi.mid")
+# MIDI_ExtractNotes(MIDIAudio)

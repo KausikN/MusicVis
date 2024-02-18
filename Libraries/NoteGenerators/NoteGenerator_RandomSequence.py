@@ -39,7 +39,7 @@ def NoteGenEnv_Update_ConstantRandomDistribution(NOTES_DATA, VALUE_GEN_MAP={}):
                 - "selection": Selects a random option from "options" key data list and assigns to the parameter (can give probability distribution in "prob" key data as a list)
     '''
     # Init
-    np.random.seed(NOTES_DATA["env_data"]["seed"])
+    if NOTES_DATA["env_data"]["seed"] is not None: np.random.seed(NOTES_DATA["env_data"]["seed"])
     POSSIBLE_NOTE_VALUES = list(VALUE_GEN_MAP.keys())
     # Generate next note
     NOTE_NEXT = {}
@@ -92,14 +92,15 @@ def RandomSequence_GenerateNotes(N, ENV_UPDATE_FUNC, MAPS, seed=0, PREV_NOTES=[]
     NOTES_DATA = {
         "notes": PREV_NOTES,
         "env_data": {
-            "seed": seed
+            "seed": None
         },
         "map_value_name": MAPS["value_name"]
     }
+    np.random.seed(seed)
     # Iterate
     for i in tqdm(range(N), disable=True):
         ## Set new seed
-        NOTES_DATA["env_data"]["seed"] = np.random.randint(0, 101)
+        # NOTES_DATA["env_data"]["seed"] = np.random.randint(0, 101)
         ## Generate Note
         NOTES_DATA = ENV_UPDATE_FUNC(NOTES_DATA)
 
