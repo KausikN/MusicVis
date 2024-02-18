@@ -6,8 +6,9 @@ References:
 """
 
 # Imports
-from mingus.core import chords as LIBRARY_CHORDS, notes as LIBRARY_NOTES, keys as LIBRARY_KEYS
+import os
 from midiutil import MIDIFile
+from mingus.core import chords as LIBRARY_CHORDS, notes as LIBRARY_NOTES, keys as LIBRARY_KEYS
 
 # Main Vars
 AVAILABLE_NOTES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
@@ -31,7 +32,7 @@ TRACKS = {}
 
 # Main Functions
 ## Chord Functions
-def Chord_GeteNotes_FromShorthand(chord_shorthand):
+def Chord_GetNotes_FromShorthand(chord_shorthand):
     '''
     Chord - Get Notes for the given chord written in shorthand notation
     '''
@@ -90,35 +91,40 @@ def Note_DecomposeNotesToKeys(notes, common_params={}):
         if note["note"] in TRACKS.keys():
             ### Recursively decompose the track
             keys_decomposed_current = Note_DecomposeNotesToKeys(TRACKS[note["note"]]["notes"], TRACKS[note["note"]]["common_params"])
-        ## Check if chord
+        ## Check if chord or key
         else:
+            ### Check if chord
+            keys_stack = []
             chord_check = False
             chord_marker = "_"
             if note["note"].startswith(chord_marker):
                 note["note"] = note["note"][len(chord_marker):]
                 try:
                     ### Get Notes for the Chord
-                    ChordNotes = Chord_GeteNotes_FromShorthand(note["note"])
+                    ChordNotes = Chord_GetNotes_FromShorthand(note["note"])
                     for cni in range(len(ChordNotes)):
                         cnd = dict(note)
                         cnd["note"] = ChordNotes[cni] # Set the current note in the chord
                         if cni > 0: cnd["delay"] = 0 # Only the first note in a chord will have the delay
-                        keys_decomposed_current.append(cnd)
+                        keys_stack.append(cnd)
                     chord_check = True
                 except Exception as e:
                     # print(e)
                     pass
-        ## If nothing, it is a key
+            ### If nothing, it is a key
             if not chord_check:
-                ### All keys should have first letter in upper case and all other letters in lower case
-                if len(note["note"]) > 1:
-                    note["note"] = note["note"][:1].upper() + note["note"][1:].lower()
-                ### Clean redundant, extra and wrong accidentals
-                note["note"] = LIBRARY_NOTES.remove_redundant_accidentals(note["note"])
-                note["note"] = LIBRARY_NOTES.reduce_accidentals(note["note"])
-                note["note"] = Note_SwapAccidentals(note["note"])
-                ### Append
-                keys_decomposed_current = [note]
+                keys_stack = [note]
+            ### Add Keys Stack
+            for cur_note in keys_stack:
+                #### All keys should have first letter in upper case and all other letters in lower case
+                if len(cur_note["note"]) > 1:
+                    cur_note["note"] = cur_note["note"][:1].upper() + cur_note["note"][1:].lower()
+                #### Clean redundant, extra and wrong accidentals
+                cur_note["note"] = LIBRARY_NOTES.remove_redundant_accidentals(cur_note["note"])
+                cur_note["note"] = LIBRARY_NOTES.reduce_accidentals(cur_note["note"])
+                cur_note["note"] = Note_SwapAccidentals(cur_note["note"])
+                #### Append
+                keys_decomposed_current.append(cur_note)
         
         KEYS.extend(keys_decomposed_current)
 
@@ -131,7 +137,7 @@ def Note_DecomposeNotesToKeys(notes, common_params={}):
     return KEYS
 
 # MIDI Functions
-def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=120):
+def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=60):
     '''
     MIDI - Add a new track to the MIDI audio
     Parameters:
@@ -192,8 +198,9 @@ def AudioGen_SaveMIDI(MIDIAudio, save_path="Data/GeneratedAudio/generated_midi.m
     '''
     Audio Generator - Save MIDI file
     '''
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     with open(save_path, "wb") as output_file:
         MIDIAudio.writeFile(output_file)
 
-# RunCode      
-# print(Chord_GeteNotes_FromShorthand("Dk"))
+# RunCode
+# print(Chord_GetNotes_FromShorthand("Dk"))

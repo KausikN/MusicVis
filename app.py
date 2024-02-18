@@ -4,6 +4,7 @@ Stream lit GUI for hosting MusicVis
 
 # Imports
 import os
+import av
 import json
 import functools
 import streamlit as st
@@ -46,7 +47,11 @@ PATHS = {
     "midi_save_path": "Data/GeneratedAudio/generated_midi.mid",
     "wav_save_path": "Data/GeneratedAudio/generated_wav.wav",
     "chords": "Data/SoundCodes/chords.json",
-    "tracks": "Data/SoundCodes/tracks.json"
+    "tracks": "Data/SoundCodes/tracks.json",
+    "temp": {
+        "audio": "Data/Temp/audio.wav",
+        "video": "Data/Temp/video.mp4"
+    }
 }
 
 # Util Vars
@@ -142,7 +147,7 @@ def UI_LoadNotes(USERINPUT_Notes=None):
     UI - Load Notes
     '''
     # Basic inputs
-    USERINPUT_tempo = st.number_input("Tempo", min_value=1, value=120)
+    USERINPUT_tempo = st.number_input("Tempo", min_value=1, value=60)
     # Common Parameters
     USERINPUT_CommonParams = json.loads(st.text_area(
         "Common Note Parameters", height=300,
@@ -287,6 +292,35 @@ def UI_NoteGenerator_RandomSequence_LoadEnvUpdateFunc(POSSIBLE_NOTES):
     
     return USERINPUT_EnvUpdateFunc
 
+def UI_NoteVisualiser(NOTES, UNIQUE_NOTES, audio_path):
+    '''
+    UI - Note Visualiser
+    '''
+    USERINPUT_VisType = st.selectbox("Select Visualiser", ["None", "Circle Bouncer"])
+    if USERINPUT_VisType == "Circle Bouncer":
+        # Params
+        USERINPUT_ShowText = st.checkbox("Show Notes", value=True)
+        cols = st.columns(4)
+        USERINPUT_Colors = {
+            "circle": cols[0].color_picker("Circle Color", "#85FFE9"),
+            "text": cols[1].color_picker("Text Color", "#2DCC61"),
+            "line": cols[2].color_picker("Line Color", "#FF7373"),
+            "point": cols[3].color_picker("Point Color", "#DE2828")
+        }
+        # Process Check
+        USERINPUT_Process = st.checkbox("Stream Visualise", value=False)
+        if not USERINPUT_Process: USERINPUT_Process = st.button("Visualise")
+        if not USERINPUT_Process: st.stop()
+        # Visualise
+        NOTES_FRAMES = LIBRARIES["Visualisers"]["CircleBouncer"].CircleBouncer_VisualiseNotes(
+            NOTES, UNIQUE_NOTES, show_text=USERINPUT_ShowText
+        )
+        LIBRARIES["Visualisers"]["CircleBouncer"].VideoUtils_SaveVisualisationVideo(
+            NOTES, NOTES_FRAMES, audio_path, PATHS["temp"]["video"]
+        )
+        st.video(PATHS["temp"]["video"])
+    else:
+        pass
 
 # Repo Based Functions
 def basic_piano_sequencer():
@@ -395,6 +429,9 @@ def piano_music_generator():
     st.markdown("## Piano Music")
     Utils_MIDI2WAV(PATHS["midi_save_path"], PATHS["wav_save_path"])
     st.audio(PATHS["wav_save_path"])
+    # Visualise Outputs
+    st.markdown("## Visualisations")
+    UI_NoteVisualiser(NOTES, LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES, PATHS["wav_save_path"])
     
 #############################################################################################################################
 # Driver Code

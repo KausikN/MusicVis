@@ -28,4 +28,5 @@ def Utils_MIDI2WAV(midi_path, save_path):
     wavfile.write(virtual_file, 44100, audio_data)
     virtual_file = virtual_file.read()
     # Write WAV file
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     open(save_path, "wb").write(virtual_file)

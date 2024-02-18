@@ -2,3 +2,7 @@ __pycache__/
 
 # Test Music
 Data/TestMusic/
+
+# Temp
+Data/Temp/
+Data/GeneratedAudio/

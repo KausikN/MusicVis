@@ -71,4 +71,4 @@ def MIDIPlot_PlotNotes_HBar(notes, note_value_name_map=None, note_value_color_ma
     return FIG
 
 
-# RunCode      
+# RunCode
