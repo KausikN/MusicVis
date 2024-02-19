@@ -108,9 +108,13 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
     },
     colors={
         "circle": "#85FFE9",
-        "text": "#2DCC61",
-        "line": "#FF7373",
-        "point": "#DE2828"
+        "note": {
+            "start": "FF0000",
+            "end": "00FF7F"
+        },
+        # "text": "#2DCC61",
+        # "line": "#FF7373",
+        # "point": "#DE2828",
     }):
     '''
     Circle Bouncer - Visualise Notes
@@ -120,6 +124,15 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
     I = np.zeros((frame_size[0], frame_size[1], 3), dtype=np.uint8)
     UNIQUE_NOTES_DATA = {k: {} for k in UNIQUE_NOTES}
     MIN_FRAME_SIZE = min(frame_size[0], frame_size[1])
+    ## Set Note Colors
+    NOTE_COLORS = {
+        "start": np.array(Util_Hex2RGB(colors["note"]["start"])),
+        "end": np.array(Util_Hex2RGB(colors["note"]["end"]))
+    }
+    NOTE_COLORS["color_map"] = {
+        UNIQUE_NOTES[i]: tuple(NOTE_COLORS["start"] + (i/len(UNIQUE_NOTES))*(NOTE_COLORS["end"] - NOTE_COLORS["start"]))
+        for i in range(len(UNIQUE_NOTES))
+    }
     # Draw initial circle
     GAP = int(MIN_FRAME_SIZE*param_percents["gap"]/2) # Gap between radius of circle and size of frame
     CIRCLE_PARAMS = {
@@ -137,7 +150,7 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
     TEXT_PARAMS = {
         "font": cv2.FONT_HERSHEY_SIMPLEX,
         "font_scale": 1,
-        "color": Util_Hex2RGB(colors["text"]),
+        # "color": Util_Hex2RGB(colors["text"]),
         "thickness": 2
     }
     for i in range(len(UNIQUE_NOTES)):
@@ -148,6 +161,7 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
             CIRCLE_PARAMS["center"][1] + CIRCLE_PARAMS["radius"]*np.sin(angle)
         )
         if show_text:
+            TEXT_PARAMS["color"] = NOTE_COLORS["color_map"][UNIQUE_NOTES[i]]
             I = cv2.putText(
                 I, str(UNIQUE_NOTES[i]), Util_GetTuplePoint(point),
                 TEXT_PARAMS["font"], TEXT_PARAMS["font_scale"],
@@ -160,11 +174,11 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
         }
     # Draw Notes
     LINE_PARAMS = {
-        "color": Util_Hex2RGB(colors["line"]),
+        # "color": Util_Hex2RGB(colors["line"]),
         "thickness": int(MIN_FRAME_SIZE*param_percents["line"]["thickness"])
     }
     POINT_PARAMS = {
-        "color": Util_Hex2RGB(colors["point"]),
+        # "color": Util_Hex2RGB(colors["point"]),
         "radius": int(MIN_FRAME_SIZE*param_percents["point"]["radius"]),
         "thickness": -1
     }
@@ -175,6 +189,9 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
     for i in range(len(notes)):
         note_frames = []
         if cur_data["note"] is not None:
+            ## Set Line Color as destination note color
+            LINE_PARAMS["color"] = NOTE_COLORS["color_map"][notes[i]["note"]]
+            ## Draw Line
             I = cv2.line(
                 I,
                 Util_GetTuplePoint(cur_data["position"]), 
@@ -184,6 +201,9 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
             I = np.array(I, dtype=np.uint8)
         cur_data["note"] = notes[i]["note"]
         cur_data["position"] = UNIQUE_NOTES_DATA[notes[i]["note"]]["position"]
+        ## Set Point Color destination note color
+        POINT_PARAMS["color"] = NOTE_COLORS["color_map"][cur_data["note"]]
+        ## Draw Point
         I_withpoint = np.copy(I)
         I_withpoint = cv2.circle(
             I_withpoint, Util_GetTuplePoint(cur_data["position"]),

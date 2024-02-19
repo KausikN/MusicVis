@@ -197,7 +197,7 @@ def MIDI_AddTrack(notes, MIDIAudio=None, track=0, start_time=0, tempo=60):
 
     return MIDIAudio
 
-def MIDI_ExtractNotes(MIDIAudio):
+def MIDI_ExtractNotes(MIDIAudio, clip_time=(-1, -1), speed=1.0):
     '''
     MIDI - Extract Notes from MIDI Audio Object
     '''
@@ -213,8 +213,14 @@ def MIDI_ExtractNotes(MIDIAudio):
         cur_delay = 0
         for message in MESSAGES:
             cur_time += message.time/1000
+            if clip_time[0] > -1 and cur_time < clip_time[0]:
+                cur_delay = -(clip_time[0]-cur_time)
+                continue
+            if clip_time[1] > -1 and cur_time > clip_time[1]:
+                cur_time = clip_time[1]
+                break
             cur_delay += message.time/1000
-            if message.type == "note_on":
+            if message.type == "note_on" and message.velocity > 0:
                 cur_note = Note_FromNumber(message.note)
                 track_notes.append({
                     "note": cur_note["note"],
@@ -227,11 +233,20 @@ def MIDI_ExtractNotes(MIDIAudio):
                     "start_time": cur_time
                 })
                 cur_delay = 0
-            elif message.type == "note_off":
+            elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):
                 for i in range(len(track_notes)):
                     if track_notes[i]["duration"] is None and message.note == track_notes[i]["value"]:
                         track_notes[i]["duration"] = cur_time - track_notes[i].pop("start_time")
+        ## Note off all pending notes
+        for i in range(len(track_notes)):
+            if track_notes[i]["duration"] is None:
+                track_notes[i]["duration"] = cur_time - track_notes[i].pop("start_time")
         if len(track_notes) > 0: NOTES.append(track_notes)
+    # Apply speed
+    for t in range(len(NOTES)):
+        for i in range(len(NOTES[t])):
+            NOTES[t][i]["delay"] /= speed
+            NOTES[t][i]["duration"] /= speed
 
     return NOTES
 

@@ -87,6 +87,7 @@ NOTE_PARAMS_INFO = {
     }
 }
 NOTE_PARAM_KEYS = list(NOTE_PARAMS_INFO.keys())
+DISPLAY_INTERMEDIATE_INFO = True
 
 # Util Functions
 def LoadCache():
@@ -175,7 +176,7 @@ def UI_LoadNotes(USERINPUT_Tracks_Notes=[], editable=False):
     '''
     # Basic inputs
     USERINPUT_tempo = st.number_input("Tempo", min_value=1, value=60, disabled=True)
-    USERINPUT_NTracks = st.number_input("Tracks", min_value=1, max_value=5, value=max(1, len(USERINPUT_Tracks_Notes)), disabled=not editable)
+    USERINPUT_NTracks = st.number_input("Tracks", min_value=1, value=max(1, len(USERINPUT_Tracks_Notes)), disabled=not editable)
     OUT = []
     # Iterate over tracks
     TRACK_COLS = st.columns(USERINPUT_NTracks)
@@ -213,12 +214,12 @@ def UI_LoadNotes(USERINPUT_Tracks_Notes=[], editable=False):
                 ))
         ## Display Notes JSON
         st_track.markdown(f"Input Notes ({len(USERINPUT_Notes)})")
-        st_track.json(USERINPUT_Notes, expanded=False)
+        if DISPLAY_INTERMEDIATE_INFO: st_track.json(USERINPUT_Notes, expanded=False)
         ## Decompose notes to keys
         USERINPUT_Notes = LIBRARIES["MusicGenerator"]["Piano"].Note_DecomposeNotesToKeys(USERINPUT_Notes, common_params=USERINPUT_CommonParams)
         ## Display Notes JSON
         st_track.markdown(f"Decomposed Notes ({len(USERINPUT_Notes)})")
-        st_track.json(USERINPUT_Notes, expanded=False)
+        if DISPLAY_INTERMEDIATE_INFO: st_track.json(USERINPUT_Notes, expanded=False)
         ## Display notes MIDI as Plot
         NOTE_VALUE_NAME_MAP = {
             v: LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES[((v-LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE[0]) % LIBRARIES["MusicGenerator"]["Piano"].NOTES_IN_OCTAVE)]
@@ -318,12 +319,16 @@ def UI_NoteVisualiser(TRACKS_NOTES, UNIQUE_NOTES, TRACKS_audio_paths):
     if USERINPUT_VisType == "Circle Bouncer":
         # Params
         USERINPUT_ShowText = st.checkbox("Show Notes", value=True)
-        cols = st.columns(4)
+        cols = st.columns(3)
         USERINPUT_Colors = {
             "circle": cols[0].color_picker("Circle Color", "#85FFE9"),
-            "text": cols[1].color_picker("Text Color", "#2DCC61"),
-            "line": cols[2].color_picker("Line Color", "#FF7373"),
-            "point": cols[3].color_picker("Point Color", "#DE2828")
+            "note": {
+                "start": cols[1].color_picker("Note Start Color", "#FF0000"),
+                "end": cols[2].color_picker("Note End Color", "#00FF7F"),
+            },
+            # "text": cols[1].color_picker("Text Color", "#2DCC61"),
+            # "line": cols[2].color_picker("Line Color", "#FF7373"),
+            # "point": cols[3].color_picker("Point Color", "#DE2828"),
         }
         # Process Check
         USERINPUT_Process = st.checkbox("Stream Visualise", value=False)
@@ -339,20 +344,22 @@ def UI_NoteVisualiser(TRACKS_NOTES, UNIQUE_NOTES, TRACKS_audio_paths):
                 NOTES, UNIQUE_NOTES, show_text=USERINPUT_ShowText, colors=USERINPUT_Colors
             )
             LIBRARIES["Visualisers"]["CircleBouncer"].VideoUtils_SaveVisualisationVideo(
-                NOTES, NOTES_FRAMES, audio_path, PATHS["temp"]["video"]
+                NOTES, NOTES_FRAMES, audio_path, PATHS["temp"]["video"].format(track=t)
             )
-            st_track.video(PATHS["temp"]["video"])
+            st_track.video(PATHS["temp"]["video"].format(track=t))
     else:
         pass
 
 # Repo Based Functions
 def basic_piano_sequencer():
+    global DISPLAY_INTERMEDIATE_INFO
     # Title
     st.header("Basic Piano Sequencer")
 
     # Prereq Loaders
     LIBRARIES["MusicGenerator"]["Piano"].CHORDS = json.load(open(PATHS["chords"], "r"))
     LIBRARIES["MusicGenerator"]["Piano"].TRACKS = json.load(open(PATHS["tracks"], "r"))
+    DISPLAY_INTERMEDIATE_INFO = st.sidebar.checkbox("Display Intermediate Info", value=True)
 
     # Load Inputs
     UI_PianoInfo()
@@ -360,11 +367,43 @@ def basic_piano_sequencer():
     USERINPUT_InputTracks_Notes = []
     USERINPUT_MIDIFile = st.file_uploader("Upload MIDI File", type="mid")
     if USERINPUT_MIDIFile is not None:
+        ## Read MIDI
         os.makedirs(os.path.dirname(PATHS["temp"]["midi"]), exist_ok=True)
         open(PATHS["temp"]["midi"], "wb").write(USERINPUT_MIDIFile.read())
         USERINPUT_MIDIFile = LIBRARIES["MusicGenerator"]["Piano"].AudioGen_LoadMIDI(PATHS["temp"]["midi"])
-        USERINPUT_InputTracks_Notes = LIBRARIES["MusicGenerator"]["Piano"].MIDI_ExtractNotes(USERINPUT_MIDIFile)
-    st.json(USERINPUT_InputTracks_Notes)
+        ## Speed
+        USERINPUT_Speed = st.number_input("Speed", min_value=0.01, value=1.0)
+        ## Clip and Extract Notes
+        cols = st.columns(2)
+        cols = [cols[0].columns((1, 3)), cols[1].columns((1, 3))]
+        AUDIO_ClipTime = [0.0, float(USERINPUT_MIDIFile.length)]
+        USERINPUT_ClipTime = [-1, -1]
+        USERINPUT_ClipCheck = [
+            cols[0][0].checkbox("Clip Start", key="clip_time_start_checkbox"),
+            cols[1][0].checkbox("Clip End", key="clip_time_end_checkbox")
+        ]
+        if USERINPUT_ClipCheck[0]:
+            USERINPUT_ClipTime[0] = cols[0][1].number_input(
+                "", min_value=AUDIO_ClipTime[0], max_value=AUDIO_ClipTime[1], value=AUDIO_ClipTime[0],
+                key="clip_time_start_number_input"
+            )
+        if USERINPUT_ClipCheck[1]:
+            USERINPUT_ClipTime[1] = cols[1][1].number_input(
+                "", min_value=max(AUDIO_ClipTime[0], USERINPUT_ClipTime[0]), max_value=AUDIO_ClipTime[1],
+                value=AUDIO_ClipTime[1], key="clip_time_end_number_input"
+            )
+        Display_ClipTime = (
+            USERINPUT_ClipTime[0] if USERINPUT_ClipTime[0] > -1 else AUDIO_ClipTime[0],
+            USERINPUT_ClipTime[1] if USERINPUT_ClipTime[1] > -1 else AUDIO_ClipTime[1]
+        )
+        st.slider("Clip", min_value=AUDIO_ClipTime[0], max_value=AUDIO_ClipTime[1], value=Display_ClipTime, disabled=True)
+        USERINPUT_InputTracks_Notes = LIBRARIES["MusicGenerator"]["Piano"].MIDI_ExtractNotes(
+            USERINPUT_MIDIFile, clip_time=USERINPUT_ClipTime, speed=USERINPUT_Speed
+        )
+    if DISPLAY_INTERMEDIATE_INFO: st.json(USERINPUT_InputTracks_Notes)
+    USERINPUT_Process = st.checkbox("Finalise Input Clip", value=False)
+    if not USERINPUT_Process: st.stop()
+    ## Load Notes
     USERINPUT_Tracks_Inputs = UI_LoadNotes(USERINPUT_InputTracks_Notes, editable=True)
 
     # Process Check
@@ -377,6 +416,7 @@ def basic_piano_sequencer():
         "audio_paths": [],
         "midi_audios": []
     }
+    TRACKS_WORKING = [True]*len(USERINPUT_Tracks_Inputs)
     MIDIAudio_Combined = LIBRARIES["MusicGenerator"]["Piano"].MIDIFile(len(USERINPUT_Tracks_Inputs))
     TRACK_COLS = st.columns(len(USERINPUT_Tracks_Inputs))
     for t in range(len(USERINPUT_Tracks_Inputs)):
@@ -390,13 +430,19 @@ def basic_piano_sequencer():
             track=0, start_time=0, 
             tempo=USERINPUT_Inputs["other_params"]["tempo"]
         )
+        ## Create audio file
+        try:
+            LIBRARIES["MusicGenerator"]["Piano"].AudioGen_SaveMIDI(MIDIAudio, save_path=PATHS["midi_save_path"].format(track=t))
+        except Exception as e:
+            TRACKS_WORKING[t] = False
+            st_track.error(e)
+        if not TRACKS_WORKING[t]: continue
+        ## Add track for combined
         MIDIAudio_Combined = LIBRARIES["MusicGenerator"]["Piano"].MIDI_AddTrack(
             NOTES, MIDIAudio=MIDIAudio_Combined, 
             track=t, start_time=0, 
             tempo=USERINPUT_Inputs["other_params"]["tempo"]
         )
-        ## Create audio file
-        LIBRARIES["MusicGenerator"]["Piano"].AudioGen_SaveMIDI(MIDIAudio, save_path=PATHS["midi_save_path"].format(track=t))
         # Display Track Outputs
         st_track.markdown("## Track")
         audio_path = PATHS["wav_save_path"].format(track=t)
