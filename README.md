@@ -14,3 +14,30 @@
     - Goto Choose Project from the left tab dropdown, choose the project and click load and deploy.
     - Then go ahead and use the app! 😃
     - If you want to change to another app, simply click on View Other Projects in top left and choose any other project and load and deploy.
+
+# Piano Sequencer
+- Load MIDI Files
+- Edit piano notes as JSON or using Simple Note Code (described in the app)
+- Generate audio from the piano notes
+- Visualise MIDI plot of the notes and other visualisations
+
+# Piano Music Generator
+- Generate randomised and parameterised piano tracks using basic notes, chords and other tracks
+- Generate audio from the generated piano notes
+- Visualise MIDI plot of the notes and other visualisations
+
+# Visualisations
+## MIDI Plot
+- Piano notes visualised as a horizontal bar chart
+    - X axis is time
+    - Y axis contains the unique notes
+
+![Visualisations - MIDI Plot - Example](Data/GeneratedVisualisations/MIDIPlot_1.png)
+
+## Circle Bouncer
+- In a circle where the notes are dispersed uniformly on its perimeter, note sequence is visualised as a video
+    - Moving from one note to another triggers a change in the internal part of the circle
+    - For "line_sequence" mode, a single line is drawn from the previous note to the current note and the drawn lines persist
+    - For "converge_sequence" mode, a line is drawn from all previous notes to the current note and the drawn lines are cleared at each iteration
+
+[Visualisations - Circle Bouncer - Example](Data/GeneratedVisualisations/Oppenheimer_2.mp4)
