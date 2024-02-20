@@ -88,6 +88,7 @@ NOTE_PARAMS_INFO = {
 }
 NOTE_PARAM_KEYS = list(NOTE_PARAMS_INFO.keys())
 DISPLAY_INTERMEDIATE_INFO = True
+VISUALISATION_SIZE = 512
 
 # Util Functions
 def LoadCache():
@@ -434,6 +435,9 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
     '''
     UI - Note Visualiser
     '''
+    global VISUALISATION_SIZE
+    # Prereq
+    VISUALISATION_SIZE = st.sidebar.number_input("Visualisation Size", min_value=128, max_value=1024, value=512, step=128)
     # Init
     UNIQUE_NOTES = LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES
     TRACKS_NOTES = [[dict(n) for n in TRACKS_NOTES[t]] for t in range(len(TRACKS_NOTES))]
@@ -449,19 +453,19 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
             AVAILABLE_NOTES = LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES
             NOTE_VALUE_RANGE = LIBRARIES["MusicGenerator"]["Piano"].NOTE_VALUE_RANGE
             OCTAVES = LIBRARIES["MusicGenerator"]["Piano"].OCTAVES
+            NOTE_OCTAVE_SEPARATOR = ""
             if not USERINPUT_GroupNoteNames:
                 UNIQUE_NOTES = [
-                    str(UNIQUE_NOTES[v%len(AVAILABLE_NOTES)]) + "_" + str(v//len(AVAILABLE_NOTES))
+                    str(UNIQUE_NOTES[v%len(AVAILABLE_NOTES)]) + NOTE_OCTAVE_SEPARATOR + str(v//len(AVAILABLE_NOTES))
                     for v in range(NOTE_VALUE_RANGE[0], NOTE_VALUE_RANGE[1]+1)
                 ]
             else:
                 UNIQUE_NOTES = []
-                N_OCTAVES = NOTE_VALUE_RANGE[1]//len(AVAILABLE_NOTES) - NOTE_VALUE_RANGE[0]//len(AVAILABLE_NOTES)
                 for ni in range(len(AVAILABLE_NOTES)):
-                    UNIQUE_NOTES.extend([AVAILABLE_NOTES[ni] + "_" + str(oi) for oi in OCTAVES])
+                    UNIQUE_NOTES.extend([AVAILABLE_NOTES[ni] + NOTE_OCTAVE_SEPARATOR + str(oi) for oi in OCTAVES])
             for t in range(len(TRACKS_NOTES)):
                 for ni in range(len(TRACKS_NOTES[t])):
-                    TRACKS_NOTES[t][ni]["note"] = TRACKS_NOTES[t][ni]["note"] + "_" + str(TRACKS_NOTES[t][ni]["octave"])
+                    TRACKS_NOTES[t][ni]["note"] = TRACKS_NOTES[t][ni]["note"] + NOTE_OCTAVE_SEPARATOR + str(TRACKS_NOTES[t][ni]["octave"])
         # Other Params
         cols = st.columns(2)
         USERINPUT_ShowText = cols[0].checkbox("Mark Notes", value=True)
@@ -477,22 +481,30 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
                 )
             }
         }
+        USERINPUT_CompressSize = st.checkbox("Compress Combined Video Size", value=True)
         # Process Check
         USERINPUT_Process = st.checkbox("Stream Visualise", value=False)
         if not USERINPUT_Process: USERINPUT_Process = st.button("Visualise")
         if not USERINPUT_Process: st.stop()
         # Visualise
+        TRACKS_DATA = {
+            "video_paths": []
+        }
         TRACK_COLS = st.columns(len(TRACKS_NOTES))
         for t in range(len(TRACKS_NOTES)):
             st_track = TRACK_COLS[t]
             audio_path = TRACKS_audio_paths[t]
             NOTES = TRACKS_NOTES[t]
             NOTES_FRAMES = LIBRARIES["Visualisers"]["CircleBouncer"].CircleBouncer_VisualiseNotes(
-                NOTES, UNIQUE_NOTES, show_text=USERINPUT_ShowText, colors=USERINPUT_Colors,
+                NOTES, UNIQUE_NOTES, frame_size=(VISUALISATION_SIZE, VISUALISATION_SIZE),
+                show_text=USERINPUT_ShowText, colors=USERINPUT_Colors,
                 param_percents={
                     "gap": 0.1,
                     "circle": {
                         "thickness": 0.0025 if not USERINPUT_FillCircle else -1
+                    },
+                    "text": {
+                        "scale": 0.0005 if not USERINPUT_OnlyNoteNames else 0.001
                     },
                     "line": {
                         "thickness": 0.0025
@@ -502,10 +514,20 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
                     }
                 }
             )
+            video_path = PATHS["temp"]["video"].format(track=t)
             LIBRARIES["Visualisers"]["CircleBouncer"].VideoUtils_SaveVisualisationVideo(
-                NOTES, NOTES_FRAMES, audio_path, PATHS["temp"]["video"].format(track=t)
+                NOTES, NOTES_FRAMES, audio_path, video_path
             )
-            st_track.video(PATHS["temp"]["video"].format(track=t))
+            st_track.video(video_path)
+            TRACKS_DATA["video_paths"].append(video_path)
+        # Combine Visualisations
+        video_path_combined = PATHS["temp"]["video"].format(track="combined")
+        LIBRARIES["Visualisers"]["CircleBouncer"].VideoUtils_CombineVisualisationVideos(
+            TRACKS_DATA["video_paths"],
+            video_path_combined,
+            compress_size=USERINPUT_CompressSize
+        )
+        st.video(video_path_combined)
     else:
         pass
 

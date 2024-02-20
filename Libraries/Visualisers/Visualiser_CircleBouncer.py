@@ -7,7 +7,7 @@ import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from moviepy.editor import AudioFileClip, ImageClip, concatenate, concatenate_videoclips
+from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, concatenate_videoclips, clips_array
 
 # Main Vars
 CMAPS = sorted(list(plt.cm._colormaps))
@@ -93,6 +93,27 @@ def VideoUtils_SaveVisualisationVideo(notes, notes_frames, audio_path, save_path
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     VIDEO.write_videofile(save_path, fps=fps)
 
+def VideoUtils_CombineVisualisationVideos(video_paths, save_path, compress_size=True, fps=24):
+    '''
+    VideoUtils - Combine Visualisation Videos
+    '''
+    # Init
+    N = len(video_paths)
+    N_ROWS = int(N ** (0.5))
+    N_COLS = int(np.ceil(N / N_ROWS))
+    VIDEO_GRID = []
+    # Combine Videos
+    for vi in range(N):
+        VIDEO_CLIP = VideoFileClip(video_paths[vi])
+        if compress_size: VIDEO_CLIP = VIDEO_CLIP.resize(1/N_COLS)
+        if vi % N_COLS == 0:
+            VIDEO_GRID.append([VIDEO_CLIP])
+        else:
+            VIDEO_GRID[-1].append(VIDEO_CLIP)
+    COMBINED_VIDEO = clips_array(VIDEO_GRID)
+    # Save Combined Video
+    COMBINED_VIDEO.write_videofile(save_path, fps=fps)
+
 # Main Functions
 def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     mode="line_sequence", # Can be ["line_sequence", "converge_sequence"]
@@ -101,6 +122,9 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         "gap": 0.1,
         "circle": {
             "thickness": 0.0025
+        },
+        "text": {
+            "scale": 0.0005
         },
         "line": {
             "thickness": 0.0025
@@ -125,6 +149,9 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     - mode: Mode/Type of visualisation
         - "line_sequence": At each iteration of notes, draw a line from previous note to current note
         - "converge_lines": At each iteration of notes, draw lines from all seen previous notes to current note
+    - show_text: Whether to display the note names as text in the circle or not
+    - param_percentages: Parameters to control the sizes and gaps in the visualisation (given as percentage of total size of frame)
+    - colors: Parameters to control the colors used in the visualisation
     '''
     # Init
     NOTES_FRAMES = []
@@ -146,7 +173,7 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         "center": (int(frame_size[0]/2), int(frame_size[1]/2)),
         "radius": int(min(frame_size[0], frame_size[1])/2 - GAP),
         "color": Util_Hex2RGB(colors["circle"]),
-        "thickness": int(MIN_FRAME_SIZE*param_percents["circle"]["thickness"])
+        "thickness": max(1, int(MIN_FRAME_SIZE*param_percents["circle"]["thickness"]))
     }
     I = cv2.circle(
         I, CIRCLE_PARAMS["center"], CIRCLE_PARAMS["radius"],
@@ -156,8 +183,8 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     ## Draw unique notes
     TEXT_PARAMS = {
         "font": cv2.FONT_HERSHEY_SIMPLEX,
-        "font_scale": 1,
-        "thickness": 2
+        "font_scale": MIN_FRAME_SIZE*param_percents["text"]["scale"],
+        "thickness": 0
     }
     for i in range(len(UNIQUE_NOTES)):
         theta = (np.pi*2) / len(UNIQUE_NOTES)
@@ -180,10 +207,10 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         }
     # Draw Notes
     LINE_PARAMS = {
-        "thickness": int(MIN_FRAME_SIZE*param_percents["line"]["thickness"])
+        "thickness": max(1, int(MIN_FRAME_SIZE*param_percents["line"]["thickness"]))
     }
     POINT_PARAMS = {
-        "radius": int(MIN_FRAME_SIZE*param_percents["point"]["radius"]),
+        "radius": max(1, int(MIN_FRAME_SIZE*param_percents["point"]["radius"])),
         "thickness": -1
     }
     cur_data = {
