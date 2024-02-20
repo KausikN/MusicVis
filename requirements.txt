@@ -8,3 +8,5 @@ mingus
 MIDIUtil
 pretty_midi
 SciPy
+mido
+moviepy
