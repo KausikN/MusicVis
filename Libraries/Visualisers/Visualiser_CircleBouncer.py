@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from moviepy.editor import AudioFileClip, ImageClip, concatenate, concatenate_videoclips
 
 # Main Vars
-
+CMAPS = sorted(list(plt.cm._colormaps))
+CMAP_DEFAULT = "rainbow"
 
 # Util Functions
 def Util_Hex2RGB(hex):
@@ -93,7 +94,9 @@ def VideoUtils_SaveVisualisationVideo(notes, notes_frames, audio_path, save_path
     VIDEO.write_videofile(save_path, fps=fps)
 
 # Main Functions
-def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), show_text=True, 
+def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
+    mode="line_sequence", # Can be ["line_sequence", "converge_sequence"]
+    show_text=True,
     param_percents={
         "gap": 0.1,
         "circle": {
@@ -109,15 +112,19 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
     colors={
         "circle": "#85FFE9",
         "note": {
-            "start": "FF0000",
-            "end": "00FF7F"
-        },
-        # "text": "#2DCC61",
-        # "line": "#FF7373",
-        # "point": "#DE2828",
+            "cmap": CMAP_DEFAULT
+        }
     }):
     '''
     Circle Bouncer - Visualise Notes
+
+    Parameters:
+    - notes: List of notes for the current track (Can visualise only one track at a time)
+    - UNIQUE_NOTES: list of possible notes
+    - frame_size: Size of visualisation frame
+    - mode: Mode/Type of visualisation
+        - "line_sequence": At each iteration of notes, draw a line from previous note to current note
+        - "converge_lines": At each iteration of notes, draw lines from all seen previous notes to current note
     '''
     # Init
     NOTES_FRAMES = []
@@ -126,13 +133,13 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
     MIN_FRAME_SIZE = min(frame_size[0], frame_size[1])
     ## Set Note Colors
     NOTE_COLORS = {
-        "start": np.array(Util_Hex2RGB(colors["note"]["start"])),
-        "end": np.array(Util_Hex2RGB(colors["note"]["end"]))
+        "cmap_list": np.array(plt.cm.get_cmap(colors["note"]["cmap"])(np.linspace(0, 1, len(UNIQUE_NOTES)))[:, :3]*255, dtype=int).tolist()
     }
     NOTE_COLORS["color_map"] = {
-        UNIQUE_NOTES[i]: tuple(NOTE_COLORS["start"] + (i/len(UNIQUE_NOTES))*(NOTE_COLORS["end"] - NOTE_COLORS["start"]))
+        UNIQUE_NOTES[i]: tuple(NOTE_COLORS["cmap_list"][i])
         for i in range(len(UNIQUE_NOTES))
     }
+    plt.cm.get_cmap("rainbow")
     # Draw initial circle
     GAP = int(MIN_FRAME_SIZE*param_percents["gap"]/2) # Gap between radius of circle and size of frame
     CIRCLE_PARAMS = {
@@ -150,7 +157,6 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
     TEXT_PARAMS = {
         "font": cv2.FONT_HERSHEY_SIMPLEX,
         "font_scale": 1,
-        # "color": Util_Hex2RGB(colors["text"]),
         "thickness": 2
     }
     for i in range(len(UNIQUE_NOTES)):
@@ -174,11 +180,9 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024), s
         }
     # Draw Notes
     LINE_PARAMS = {
-        # "color": Util_Hex2RGB(colors["line"]),
         "thickness": int(MIN_FRAME_SIZE*param_percents["line"]["thickness"])
     }
     POINT_PARAMS = {
-        # "color": Util_Hex2RGB(colors["point"]),
         "radius": int(MIN_FRAME_SIZE*param_percents["point"]["radius"]),
         "thickness": -1
     }

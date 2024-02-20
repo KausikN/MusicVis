@@ -12,6 +12,7 @@ from mido import MidiFile as MidiFile_Read, Message, MetaMessage
 from mingus.core import chords as LIBRARY_CHORDS, notes as LIBRARY_NOTES, keys as LIBRARY_KEYS
 
 # Main Vars
+NOTE_VALUE_RANGE = [0, 127]
 AVAILABLE_NOTES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 NOTES_ACCIDENTALS_MAP = {
     # General Accidentals
@@ -26,8 +27,7 @@ NOTES_ACCIDENTALS_MAP = {
     "Cb": "B"
 }
 NOTES_IN_OCTAVE = len(AVAILABLE_NOTES)
-OCTAVES = list(range(NOTES_IN_OCTAVE-1))
-NOTE_VALUE_RANGE = [0, 127]
+OCTAVES = list(range(NOTE_VALUE_RANGE[1]//NOTES_IN_OCTAVE - NOTE_VALUE_RANGE[0]//NOTES_IN_OCTAVE))
 CHORDS = {}
 TRACKS = {}
 
