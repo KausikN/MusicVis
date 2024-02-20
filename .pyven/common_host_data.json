@@ -5,5 +5,8 @@
         "MusicVis.py",
         "Libraries/",
         "Data/GeneratedAudio/"
-    ]
+    ],
+    "streamlit": {
+        "link": "https://kausikn-musicvis.streamlit.app/"
+    }
 }

@@ -5,7 +5,6 @@ opencv-python-headless
 
 av
 pyFluidSynth
-# fluidsynth
 
 mingus
 MIDIUtil
