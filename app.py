@@ -520,7 +520,7 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
             st_track = TRACK_COLS[t]
             audio_path = TRACKS_audio_paths[t]
             NOTES = TRACKS_NOTES[t]
-            # ## Clean chords (notes with delay 0 causing visualisation jumps) (NOT WORKING, VIDEO DURATION IS MORE THAN AUDIO AND NOT INSYNC)
+            # ## Clean chords (notes with delay 0 causing visualisation jumps) (NOT WORKING, VIDEO IS NNOT IN SYNC DUE TO DELETION OF SOME NOTES)
             # NOTES_CLEANED = []
             # for ni in range(len(NOTES)):
             #     note = NOTES[ni]

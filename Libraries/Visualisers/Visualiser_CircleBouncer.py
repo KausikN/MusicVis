@@ -5,6 +5,7 @@ Visualiser Library - Circle Bouncer
 # Imports
 import os
 import cv2
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, concatenate_videoclips, clips_array
@@ -79,8 +80,9 @@ def VideoUtils_SaveVisualisationVideo(notes, notes_frames, audio_path, save_path
                 "type": "note",
                 "note": notes[i]["note"],
                 "duration": note_frame_duration,
+                "video_duration": FRAMES[-1].duration
             })
-        cur_time += note_frame_duration
+        cur_time += notes[i]["duration"]
     # Final Frames
     if cur_time < DURATION:
         final_frame_clip = ImageClip(notes_frames[-1][-1]).set_duration(DURATION - cur_time)
@@ -89,6 +91,7 @@ def VideoUtils_SaveVisualisationVideo(notes, notes_frames, audio_path, save_path
             "type": "final",
             "note": notes[-1]["note"],
             "duration": DURATION - cur_time,
+            "video_duration": FRAMES[-1].duration
         })
     # Concatenate
     VIDEO = concatenate_videoclips(FRAMES, method="chain")
