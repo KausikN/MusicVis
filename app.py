@@ -480,9 +480,10 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
                 if un in USED_NOTES: UNIQUE_NOTES_Used.append(un)
             UNIQUE_NOTES = USED_NOTES
         # Other Params
-        cols = st.columns(2)
+        cols = st.columns(3)
         USERINPUT_ShowText = cols[0].checkbox("Mark Notes", value=True)
         USERINPUT_FillCircle = cols[1].checkbox("Fill Circle", value=False)
+        USERINPUT_FPNS = cols[2].number_input("Frames per note second", min_value=1, value=24)
         cols = st.columns(2)
         USERINPUT_Colors = {
             "circle": cols[0].color_picker("Circle Color", "#FFFFFF"),
@@ -519,10 +520,21 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
             st_track = TRACK_COLS[t]
             audio_path = TRACKS_audio_paths[t]
             NOTES = TRACKS_NOTES[t]
+            # ## Clean chords (notes with delay 0 causing visualisation jumps) (NOT WORKING, VIDEO DURATION IS MORE THAN AUDIO AND NOT INSYNC)
+            # NOTES_CLEANED = []
+            # for ni in range(len(NOTES)):
+            #     note = NOTES[ni]
+            #     if ni > 0 and note["delay"] == 0:
+            #         if note["duration"] > NOTES_CLEANED[-1]["duration"]:
+            #             NOTES_CLEANED[-1] = note
+            #     else:
+            #         NOTES_CLEANED.append(note)
+            # NOTES = NOTES_CLEANED
+            ## Generate Frames
             NOTES_FRAMES = LIBRARIES["Visualisers"]["CircleBouncer"].CircleBouncer_VisualiseNotes(
                 NOTES, UNIQUE_NOTES, frame_size=(VISUALISATION_SIZE, VISUALISATION_SIZE),
                 mode=USERINPUT_VisMode,
-                show_text=USERINPUT_ShowText,
+                show_text=USERINPUT_ShowText, frames_per_notesec=USERINPUT_FPNS,
                 fade_params=USERINPUT_FadeParams,
                 colors=USERINPUT_Colors,
                 sizes={

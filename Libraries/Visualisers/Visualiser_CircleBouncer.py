@@ -45,14 +45,19 @@ def VideoUtils_SaveVisualisationVideo(notes, notes_frames, audio_path, save_path
     FRAMES_INFO = []
     # Form final notes (clean overlapping notes)
     NOTES_FINAL = []
+    NOTES_FRAMES_FINAL = []
     for i in range(len(notes)):
         cur_note = {
             "note": notes[i]["note"],
             "delay": notes[i]["delay"],
             "duration": notes[i]["duration"] if i == len(notes)-1 else notes[i+1]["delay"]
         }
-        NOTES_FINAL.append(cur_note)
+        ## If cur note starts at same time as previous note (delay = 0)
+        if len(notes_frames[i]) > 0:
+            NOTES_FINAL.append(cur_note)
+            NOTES_FRAMES_FINAL.append(notes_frames[i])
     notes = NOTES_FINAL
+    notes_frames = NOTES_FRAMES_FINAL
     # Initial Frame
     if notes[0]["delay"] > 0:
         if initial_frame is None: initial_frame = np.copy(notes_frames[0][0])
@@ -120,7 +125,6 @@ def CircleBouncer_VisualiseMode_LineSequence(notes, cur_data, **params):
     Circle Bouncer - Visualise Mode - Line Sequence
     '''
     # Init
-    note_frames = []
     iteration = cur_data["iteration"]
     I = np.copy(cur_data["I"])
     note = notes[iteration]
@@ -133,9 +137,11 @@ def CircleBouncer_VisualiseMode_LineSequence(notes, cur_data, **params):
         "note": note["note"],
         "position": UNIQUE_NOTES_DATA[note["note"]]["position"]
     }
+    note_frames = [np.copy(I)]
 
     # For non-first iterations, draw line
     if "notes" in cur_data.keys():
+        note_frames = []
         ## Draw lines from source point to destination for each iteration till now (within fade threshold of current iteration)
         start_it = max(0, iteration-NOTE_COLORS["fade_threshold"]+1) if NOTE_COLORS["fade_threshold"] > 0 else 0
         for ci in range(start_it, iteration-1):
@@ -154,15 +160,24 @@ def CircleBouncer_VisualiseMode_LineSequence(notes, cur_data, **params):
                 Util_GetTuplePoint(destination["position"]), 
                 LINE_PARAMS["color"], LINE_PARAMS["thickness"]
             )
-        ## Draw line for current iteration
+        ## Draw line for current iteration (with FRAMES_PER_NOTE-1 intermediate lines)
         LINE_PARAMS["color"] = NOTE_COLORS["color_map"][next_data["note"]]
-        I = cv2.line(
-            I,
-            Util_GetTuplePoint(cur_data["notes"][-1]["position"]), 
-            Util_GetTuplePoint(next_data["position"]), 
-            LINE_PARAMS["color"], LINE_PARAMS["thickness"]
-        )
-        I = np.array(I, dtype=np.uint8)
+        start_pos = np.array(cur_data["notes"][-1]["position"])
+        end_pos = np.array(next_data["position"])
+        cur_start_pos = start_pos
+        cur_end_pos = start_pos
+        diff_pos = end_pos - start_pos
+        for fi in range(FRAMES_PER_NOTE):
+            cur_start_pos = cur_end_pos
+            cur_end_pos = cur_start_pos + (diff_pos / FRAMES_PER_NOTE)
+            I = cv2.line(
+                I,
+                Util_GetTuplePoint(cur_start_pos),
+                Util_GetTuplePoint(cur_end_pos),
+                LINE_PARAMS["color"], LINE_PARAMS["thickness"]
+            )
+            I = np.array(I, dtype=np.uint8)
+            note_frames.append(np.copy(I))
     else:
         cur_data.update({
             "notes": []
@@ -172,12 +187,12 @@ def CircleBouncer_VisualiseMode_LineSequence(notes, cur_data, **params):
     ## Set Point Color destination note color
     POINT_PARAMS["color"] = NOTE_COLORS["color_map"][next_data["note"]]
     ## Draw Point
-    I = cv2.circle(
-        I, Util_GetTuplePoint(next_data["position"]),
+    I_last = cv2.circle(
+        note_frames[-1], Util_GetTuplePoint(next_data["position"]),
         POINT_PARAMS["radius"], POINT_PARAMS["color"], POINT_PARAMS["thickness"]
     )
-    I = np.array(I, dtype=np.uint8)
-    note_frames.append(I)
+    I_last = np.array(I_last, dtype=np.uint8)
+    note_frames[-1] = I_last
 
     # Update Cur Data
     cur_data["notes"].append(next_data)
@@ -189,7 +204,6 @@ def CircleBouncer_VisualiseMode_ConvergeSequence(notes, cur_data, **params):
     Circle Bouncer - Visualise Mode - Converge Sequence
     '''
     # Init
-    note_frames = []
     iteration = cur_data["iteration"]
     I = np.copy(cur_data["I"])
     note = notes[iteration]
@@ -197,58 +211,57 @@ def CircleBouncer_VisualiseMode_ConvergeSequence(notes, cur_data, **params):
     NOTE_COLORS = params["NOTE_COLORS"]
     LINE_PARAMS = params["LINE_PARAMS"]
     POINT_PARAMS = params["POINT_PARAMS"]
-    FRAMES_PER_NOTE = params["frames_per_note"]
     next_data = {
         "note": note["note"],
         "position": UNIQUE_NOTES_DATA[note["note"]]["position"]
     }
+    note_frames = [np.copy(I)]
 
     # For non-first iterations, draw converging lines
-    if "positions" in cur_data.keys():
+    if "notes" in cur_data.keys():
+        note_frames = []
         ## Draw line from each visited note to current destination note (within fade threshold of current iteration)
-        start_it = iteration-NOTE_COLORS["fade_threshold"]+1 if NOTE_COLORS["fade_threshold"] > 0 else 0
-        for pi in range(start_it, iteration):
-            source_note = cur_data["notes"][pi]
-            source_position = cur_data["positions"][pi]
+        start_it = max(0, iteration-NOTE_COLORS["fade_threshold"]+1) if NOTE_COLORS["fade_threshold"] > 0 else 0
+        for pi in range(start_it, iteration-1):
+            source = cur_data["notes"][pi]
             ### Set Line Color as source note color with fade
             if NOTE_COLORS["fade_threshold"] > 0:
-                LINE_PARAMS["color"] = NOTE_COLORS["color_map_withfade"][source_note][iteration-pi]
+                LINE_PARAMS["color"] = NOTE_COLORS["color_map_withfade"][source["note"]][iteration-pi]
             else:
-                LINE_PARAMS["color"] = NOTE_COLORS["color_map"][source_note]
+                LINE_PARAMS["color"] = NOTE_COLORS["color_map"][source["note"]]
             ### Draw Line
             I = cv2.line(
                 I,
-                Util_GetTuplePoint(source_position), 
+                Util_GetTuplePoint(source["position"]), 
                 Util_GetTuplePoint(next_data["position"]),
                 LINE_PARAMS["color"], LINE_PARAMS["thickness"]
             )
         I = np.array(I, dtype=np.uint8)
+        note_frames.append(np.copy(I))
     else:
         cur_data.update({
-            "notes": [],
-            "positions": []
+            "notes": []
         })
 
     # For all iterations, draw point
     ## Set Point Color destination note color
     POINT_PARAMS["color"] = NOTE_COLORS["color_map"][next_data["note"]]
     ## Draw Point
-    I = cv2.circle(
-        I, Util_GetTuplePoint(next_data["position"]),
+    I_last = cv2.circle(
+        note_frames[-1], Util_GetTuplePoint(next_data["position"]),
         POINT_PARAMS["radius"], POINT_PARAMS["color"], POINT_PARAMS["thickness"]
     )
-    I = np.array(I, dtype=np.uint8)
-    note_frames.append(I)
+    I_last = np.array(I_last, dtype=np.uint8)
+    note_frames[-1] = I_last
 
     # Update Cur Data
-    cur_data["notes"].append(next_data["note"])
-    cur_data["positions"].append(next_data["position"])
+    cur_data["notes"].append(next_data)
 
     return note_frames, cur_data
 
 def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     mode="line_sequence", # Can be ["line_sequence", "converge_lines"]
-    show_text=True, frames_per_note=1,
+    show_text=True, frames_per_notesec=1,
     fade_params={
         "type": "none",
         "threshold": 5
@@ -285,7 +298,7 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         - "line_sequence": At each iteration of notes, draw a line from previous note to current note
         - "converge_lines": At each iteration of notes, draw lines from all seen previous notes to current note
     - show_text: Whether to display the note names as text in the circle or not
-    - frames_per_note: Number of frames per note
+    - frames_per_notesec: Number of frames per second for each note
     - fade_params: Fading parameters
         - "type": Type of fading applied to fade out the lines of previous notes
             - "none": No fade out
@@ -375,21 +388,21 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     for i in range(len(notes)):
         cur_data["iteration"] = i
         note_frames = []
+
         if mode == "line_sequence":
             note_frames, cur_data = CircleBouncer_VisualiseMode_LineSequence(
                 notes, cur_data,
                 UNIQUE_NOTES_DATA=UNIQUE_NOTES_DATA, NOTE_COLORS=NOTE_COLORS,
                 LINE_PARAMS=LINE_PARAMS, POINT_PARAMS=POINT_PARAMS,
-                frames_per_note=frames_per_note
+                frames_per_note=max(1, int(round(frames_per_notesec*notes[i]["duration"])))
             )
         elif mode == "converge_lines":
             note_frames, cur_data = CircleBouncer_VisualiseMode_ConvergeSequence(
                 notes, cur_data,
                 UNIQUE_NOTES_DATA=UNIQUE_NOTES_DATA, NOTE_COLORS=NOTE_COLORS,
-                LINE_PARAMS=LINE_PARAMS, POINT_PARAMS=POINT_PARAMS,
-                frames_per_note=frames_per_note
+                LINE_PARAMS=LINE_PARAMS, POINT_PARAMS=POINT_PARAMS
             )
-        
+
         NOTES_FRAMES.append(note_frames)
 
     return NOTES_FRAMES

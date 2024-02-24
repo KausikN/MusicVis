@@ -40,4 +40,4 @@
     - For "line_sequence" mode, a single line is drawn from the previous note to the current note and the drawn lines persist
     ![Visualisations - Circle Bouncer - Oppenheimer](Data/GeneratedVisualisations/Oppenheimer_1.gif)
     ***(Oppenheimer : Can you hear the music?)***
-    - For "converge_sequence" mode, a line is drawn from all previous notes to the current note and the drawn lines are cleared at each iteration
+    - For "converge_lines" mode, a line is drawn from all previous notes to the current note and the drawn lines are cleared at each iteration
