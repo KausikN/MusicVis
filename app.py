@@ -445,9 +445,12 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
     USERINPUT_VisType = st.selectbox("Select Visualiser", ["Circle Bouncer", "None"])
     if USERINPUT_VisType == "Circle Bouncer":
         # Params
-        cols = st.columns(2)
-        USERINPUT_OnlyNoteNames = cols[0].checkbox("Visualise with note names only", value=True)
-        if not USERINPUT_OnlyNoteNames: USERINPUT_GroupNoteNames = cols[1].checkbox("Group by note names", value=True)
+        USERINPUT_VisMode = st.selectbox("Mode", ["Line Sequence", "Converge Lines"])
+        USERINPUT_VisMode = USERINPUT_VisMode.replace(" ", "_").lower()
+        cols = st.columns(3)
+        USERINPUT_UsedNotesOnly = cols[0].checkbox("Visualise used notes only", value=False)
+        USERINPUT_OnlyNoteNames = cols[1].checkbox("Visualise without octaves", value=True)
+        if not USERINPUT_OnlyNoteNames: USERINPUT_GroupNoteNames = cols[2].checkbox("Group by note names", value=True)
         ## Update based on params
         if not USERINPUT_OnlyNoteNames:
             AVAILABLE_NOTES = LIBRARIES["MusicGenerator"]["Piano"].AVAILABLE_NOTES
@@ -466,6 +469,16 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
             for t in range(len(TRACKS_NOTES)):
                 for ni in range(len(TRACKS_NOTES[t])):
                     TRACKS_NOTES[t][ni]["note"] = TRACKS_NOTES[t][ni]["note"] + NOTE_OCTAVE_SEPARATOR + str(TRACKS_NOTES[t][ni]["octave"])
+        ## Check used notes only
+        if USERINPUT_UsedNotesOnly:
+            UNIQUE_NOTES_Used = []
+            USED_NOTES = []
+            for t in range(len(TRACKS_NOTES)):
+                USED_NOTES.extend(list(set([n["note"] for n in TRACKS_NOTES[t]])))
+                USED_NOTES = list(set(USED_NOTES))
+            for un in UNIQUE_NOTES:
+                if un in USED_NOTES: UNIQUE_NOTES_Used.append(un)
+            UNIQUE_NOTES = USED_NOTES
         # Other Params
         cols = st.columns(2)
         USERINPUT_ShowText = cols[0].checkbox("Mark Notes", value=True)
@@ -481,6 +494,17 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
                 )
             }
         }
+        cols = st.columns(2)
+        USERINPUT_FadeParams = {
+            "type": cols[0].selectbox("Fade Type", ["None", "Linear"]).replace(" ", "_").lower(),
+            "threshold": -1
+        }
+        if USERINPUT_FadeParams["type"] != "none":
+            USERINPUT_FadeParams["threshold"] = cols[1].number_input("Displayed Notes Window", min_value=1, value=5)
+        else:
+            subcols = cols[1].columns(2)
+            if subcols[0].checkbox("Apply Threshold", value=False):
+                USERINPUT_FadeParams["threshold"] = subcols[1].number_input("Displayed Notes Window", min_value=1, value=5)
         USERINPUT_CompressSize = st.checkbox("Compress Combined Video Size", value=True)
         # Process Check
         USERINPUT_Process = st.checkbox("Stream Visualise", value=False)
@@ -497,8 +521,11 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
             NOTES = TRACKS_NOTES[t]
             NOTES_FRAMES = LIBRARIES["Visualisers"]["CircleBouncer"].CircleBouncer_VisualiseNotes(
                 NOTES, UNIQUE_NOTES, frame_size=(VISUALISATION_SIZE, VISUALISATION_SIZE),
-                show_text=USERINPUT_ShowText, colors=USERINPUT_Colors,
-                param_percents={
+                mode=USERINPUT_VisMode,
+                show_text=USERINPUT_ShowText,
+                fade_params=USERINPUT_FadeParams,
+                colors=USERINPUT_Colors,
+                sizes={
                     "gap": 0.1,
                     "circle": {
                         "thickness": 0.0025 if not USERINPUT_FillCircle else -1

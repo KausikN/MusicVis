@@ -38,6 +38,6 @@
 - In a circle where the notes are dispersed uniformly on its perimeter, note sequence is visualised as a video
     - Moving from one note to another triggers a change in the internal part of the circle
     - For "line_sequence" mode, a single line is drawn from the previous note to the current note and the drawn lines persist
+    ![Visualisations - Circle Bouncer - Oppenheimer](Data/GeneratedVisualisations/Oppenheimer_1.gif)
+    ***(Oppenheimer : Can you hear the music?)***
     - For "converge_sequence" mode, a line is drawn from all previous notes to the current note and the drawn lines are cleared at each iteration
-
-[Visualisations - Circle Bouncer - Example](Data/GeneratedVisualisations/Oppenheimer_2.mp4)

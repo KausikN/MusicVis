@@ -115,10 +115,145 @@ def VideoUtils_CombineVisualisationVideos(video_paths, save_path, compress_size=
     COMBINED_VIDEO.write_videofile(save_path, fps=fps)
 
 # Main Functions
+def CircleBouncer_VisualiseMode_LineSequence(notes, cur_data, **params):
+    '''
+    Circle Bouncer - Visualise Mode - Line Sequence
+    '''
+    # Init
+    note_frames = []
+    iteration = cur_data["iteration"]
+    I = np.copy(cur_data["I"])
+    note = notes[iteration]
+    UNIQUE_NOTES_DATA = params["UNIQUE_NOTES_DATA"]
+    NOTE_COLORS = params["NOTE_COLORS"]
+    LINE_PARAMS = params["LINE_PARAMS"]
+    POINT_PARAMS = params["POINT_PARAMS"]
+    FRAMES_PER_NOTE = params["frames_per_note"]
+    next_data = {
+        "note": note["note"],
+        "position": UNIQUE_NOTES_DATA[note["note"]]["position"]
+    }
+
+    # For non-first iterations, draw line
+    if "notes" in cur_data.keys():
+        ## Draw lines from source point to destination for each iteration till now (within fade threshold of current iteration)
+        start_it = max(0, iteration-NOTE_COLORS["fade_threshold"]+1) if NOTE_COLORS["fade_threshold"] > 0 else 0
+        for ci in range(start_it, iteration-1):
+            ### Init
+            source = cur_data["notes"][ci]
+            destination = cur_data["notes"][ci+1]
+            ### Set Line Color as destination note color with fade
+            if NOTE_COLORS["fade_threshold"] > 0:
+                LINE_PARAMS["color"] = NOTE_COLORS["color_map_withfade"][destination["note"]][iteration-ci]
+            else:
+                LINE_PARAMS["color"] = NOTE_COLORS["color_map"][destination["note"]]
+            ### Draw Line
+            I = cv2.line(
+                I,
+                Util_GetTuplePoint(source["position"]), 
+                Util_GetTuplePoint(destination["position"]), 
+                LINE_PARAMS["color"], LINE_PARAMS["thickness"]
+            )
+        ## Draw line for current iteration
+        LINE_PARAMS["color"] = NOTE_COLORS["color_map"][next_data["note"]]
+        I = cv2.line(
+            I,
+            Util_GetTuplePoint(cur_data["notes"][-1]["position"]), 
+            Util_GetTuplePoint(next_data["position"]), 
+            LINE_PARAMS["color"], LINE_PARAMS["thickness"]
+        )
+        I = np.array(I, dtype=np.uint8)
+    else:
+        cur_data.update({
+            "notes": []
+        })
+
+    # For all iterations, draw point
+    ## Set Point Color destination note color
+    POINT_PARAMS["color"] = NOTE_COLORS["color_map"][next_data["note"]]
+    ## Draw Point
+    I = cv2.circle(
+        I, Util_GetTuplePoint(next_data["position"]),
+        POINT_PARAMS["radius"], POINT_PARAMS["color"], POINT_PARAMS["thickness"]
+    )
+    I = np.array(I, dtype=np.uint8)
+    note_frames.append(I)
+
+    # Update Cur Data
+    cur_data["notes"].append(next_data)
+
+    return note_frames, cur_data
+
+def CircleBouncer_VisualiseMode_ConvergeSequence(notes, cur_data, **params):
+    '''
+    Circle Bouncer - Visualise Mode - Converge Sequence
+    '''
+    # Init
+    note_frames = []
+    iteration = cur_data["iteration"]
+    I = np.copy(cur_data["I"])
+    note = notes[iteration]
+    UNIQUE_NOTES_DATA = params["UNIQUE_NOTES_DATA"]
+    NOTE_COLORS = params["NOTE_COLORS"]
+    LINE_PARAMS = params["LINE_PARAMS"]
+    POINT_PARAMS = params["POINT_PARAMS"]
+    FRAMES_PER_NOTE = params["frames_per_note"]
+    next_data = {
+        "note": note["note"],
+        "position": UNIQUE_NOTES_DATA[note["note"]]["position"]
+    }
+
+    # For non-first iterations, draw converging lines
+    if "positions" in cur_data.keys():
+        ## Draw line from each visited note to current destination note (within fade threshold of current iteration)
+        start_it = iteration-NOTE_COLORS["fade_threshold"]+1 if NOTE_COLORS["fade_threshold"] > 0 else 0
+        for pi in range(start_it, iteration):
+            source_note = cur_data["notes"][pi]
+            source_position = cur_data["positions"][pi]
+            ### Set Line Color as source note color with fade
+            if NOTE_COLORS["fade_threshold"] > 0:
+                LINE_PARAMS["color"] = NOTE_COLORS["color_map_withfade"][source_note][iteration-pi]
+            else:
+                LINE_PARAMS["color"] = NOTE_COLORS["color_map"][source_note]
+            ### Draw Line
+            I = cv2.line(
+                I,
+                Util_GetTuplePoint(source_position), 
+                Util_GetTuplePoint(next_data["position"]),
+                LINE_PARAMS["color"], LINE_PARAMS["thickness"]
+            )
+        I = np.array(I, dtype=np.uint8)
+    else:
+        cur_data.update({
+            "notes": [],
+            "positions": []
+        })
+
+    # For all iterations, draw point
+    ## Set Point Color destination note color
+    POINT_PARAMS["color"] = NOTE_COLORS["color_map"][next_data["note"]]
+    ## Draw Point
+    I = cv2.circle(
+        I, Util_GetTuplePoint(next_data["position"]),
+        POINT_PARAMS["radius"], POINT_PARAMS["color"], POINT_PARAMS["thickness"]
+    )
+    I = np.array(I, dtype=np.uint8)
+    note_frames.append(I)
+
+    # Update Cur Data
+    cur_data["notes"].append(next_data["note"])
+    cur_data["positions"].append(next_data["position"])
+
+    return note_frames, cur_data
+
 def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
-    mode="line_sequence", # Can be ["line_sequence", "converge_sequence"]
-    show_text=True,
-    param_percents={
+    mode="line_sequence", # Can be ["line_sequence", "converge_lines"]
+    show_text=True, frames_per_note=1,
+    fade_params={
+        "type": "none",
+        "threshold": 5
+    },
+    sizes={
         "gap": 0.1,
         "circle": {
             "thickness": 0.0025
@@ -150,7 +285,13 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         - "line_sequence": At each iteration of notes, draw a line from previous note to current note
         - "converge_lines": At each iteration of notes, draw lines from all seen previous notes to current note
     - show_text: Whether to display the note names as text in the circle or not
-    - param_percentages: Parameters to control the sizes and gaps in the visualisation (given as percentage of total size of frame)
+    - frames_per_note: Number of frames per note
+    - fade_params: Fading parameters
+        - "type": Type of fading applied to fade out the lines of previous notes
+            - "none": No fade out
+            - "linear": Linearly fade out previous notes based on difference between current iteration and iteration of the note
+        - "threshold": Threshold beyond which if the iteration difference exceeds, the note line is not displayed
+    - sizes: Parameters to control the sizes and gaps in the visualisation (given as percentage of total size of frame)
     - colors: Parameters to control the colors used in the visualisation
     '''
     # Init
@@ -160,20 +301,34 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     MIN_FRAME_SIZE = min(frame_size[0], frame_size[1])
     ## Set Note Colors
     NOTE_COLORS = {
+        "fade_threshold": fade_params["threshold"],
+        "background": Util_Hex2RGB(colors["circle"]) if sizes["circle"]["thickness"] == -1 else Util_Hex2RGB("#000000"),
         "cmap_list": np.array(plt.cm.get_cmap(colors["note"]["cmap"])(np.linspace(0, 1, len(UNIQUE_NOTES)))[:, :3]*255, dtype=int).tolist()
     }
     NOTE_COLORS["color_map"] = {
         UNIQUE_NOTES[i]: tuple(NOTE_COLORS["cmap_list"][i])
         for i in range(len(UNIQUE_NOTES))
     }
-    plt.cm.get_cmap("rainbow")
+    NOTE_COLORS["color_map_withfade"] = {}
+    bg_color = np.array(NOTE_COLORS["background"])
+    for un in UNIQUE_NOTES:
+        NOTE_COLORS["color_map_withfade"][un] = []
+        if fade_params["threshold"] > 0:
+            note_color = np.array(NOTE_COLORS["color_map"][un])
+            for itd in range(fade_params["threshold"]):
+                cur_faded_color = note_color
+                if fade_params["type"] == "linear":
+                    cur_faded_color = (itd*bg_color + (fade_params["threshold"]-itd)*note_color) / fade_params["threshold"]
+                    cur_faded_color = np.array(np.round(cur_faded_color, 0), dtype=np.uint8)
+                cur_faded_color = tuple(cur_faded_color.tolist())
+                NOTE_COLORS["color_map_withfade"][un].append(cur_faded_color)
     # Draw initial circle
-    GAP = int(MIN_FRAME_SIZE*param_percents["gap"]/2) # Gap between radius of circle and size of frame
+    GAP = int(MIN_FRAME_SIZE*sizes["gap"]/2) # Gap between radius of circle and size of frame
     CIRCLE_PARAMS = {
         "center": (int(frame_size[0]/2), int(frame_size[1]/2)),
         "radius": int(min(frame_size[0], frame_size[1])/2 - GAP),
         "color": Util_Hex2RGB(colors["circle"]),
-        "thickness": max(1, int(MIN_FRAME_SIZE*param_percents["circle"]["thickness"]))
+        "thickness": max(1, int(MIN_FRAME_SIZE*sizes["circle"]["thickness"]))
     }
     I = cv2.circle(
         I, CIRCLE_PARAMS["center"], CIRCLE_PARAMS["radius"],
@@ -183,7 +338,7 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     ## Draw unique notes
     TEXT_PARAMS = {
         "font": cv2.FONT_HERSHEY_SIMPLEX,
-        "font_scale": MIN_FRAME_SIZE*param_percents["text"]["scale"],
+        "font_scale": MIN_FRAME_SIZE*sizes["text"]["scale"],
         "thickness": 0
     }
     for i in range(len(UNIQUE_NOTES)):
@@ -207,43 +362,36 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         }
     # Draw Notes
     LINE_PARAMS = {
-        "thickness": max(1, int(MIN_FRAME_SIZE*param_percents["line"]["thickness"]))
+        "thickness": max(1, int(MIN_FRAME_SIZE*sizes["line"]["thickness"]))
     }
     POINT_PARAMS = {
-        "radius": max(1, int(MIN_FRAME_SIZE*param_percents["point"]["radius"])),
+        "radius": max(1, int(MIN_FRAME_SIZE*sizes["point"]["radius"])),
         "thickness": -1
     }
     cur_data = {
-        "note": None,
-        "position": (0, 0)
+        "iteration": 0,
+        "I": I
     }
     for i in range(len(notes)):
+        cur_data["iteration"] = i
         note_frames = []
-        if cur_data["note"] is not None:
-            ## Set Line Color as destination note color
-            LINE_PARAMS["color"] = NOTE_COLORS["color_map"][notes[i]["note"]]
-            ## Draw Line
-            I = cv2.line(
-                I,
-                Util_GetTuplePoint(cur_data["position"]), 
-                Util_GetTuplePoint(UNIQUE_NOTES_DATA[notes[i]["note"]]["position"]),
-                LINE_PARAMS["color"], LINE_PARAMS["thickness"]
+        if mode == "line_sequence":
+            note_frames, cur_data = CircleBouncer_VisualiseMode_LineSequence(
+                notes, cur_data,
+                UNIQUE_NOTES_DATA=UNIQUE_NOTES_DATA, NOTE_COLORS=NOTE_COLORS,
+                LINE_PARAMS=LINE_PARAMS, POINT_PARAMS=POINT_PARAMS,
+                frames_per_note=frames_per_note
             )
-            I = np.array(I, dtype=np.uint8)
-        cur_data["note"] = notes[i]["note"]
-        cur_data["position"] = UNIQUE_NOTES_DATA[notes[i]["note"]]["position"]
-        ## Set Point Color destination note color
-        POINT_PARAMS["color"] = NOTE_COLORS["color_map"][cur_data["note"]]
-        ## Draw Point
-        I_withpoint = np.copy(I)
-        I_withpoint = cv2.circle(
-            I_withpoint, Util_GetTuplePoint(cur_data["position"]),
-            POINT_PARAMS["radius"], POINT_PARAMS["color"], POINT_PARAMS["thickness"]
-        )
-        I_withpoint = np.array(I_withpoint, dtype=np.uint8)
-        note_frames.append(I_withpoint)
+        elif mode == "converge_lines":
+            note_frames, cur_data = CircleBouncer_VisualiseMode_ConvergeSequence(
+                notes, cur_data,
+                UNIQUE_NOTES_DATA=UNIQUE_NOTES_DATA, NOTE_COLORS=NOTE_COLORS,
+                LINE_PARAMS=LINE_PARAMS, POINT_PARAMS=POINT_PARAMS,
+                frames_per_note=frames_per_note
+            )
+        
         NOTES_FRAMES.append(note_frames)
-    
+
     return NOTES_FRAMES
 
 
