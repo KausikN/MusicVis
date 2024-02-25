@@ -105,6 +105,35 @@ def SaveCache():
     global CACHE
     json.dump(CACHE, open(PATHS["cache"], "w"), indent=4)
 
+# Progress Bar Classes
+class ProgressBar:
+    def __init__(self, name="", total=1):
+        '''
+        Streamlit Progress Bar
+        '''
+        self.name = name
+        self.total = total
+        self.value = 0
+        self.obj = st.sidebar.progress(self.value/self.total, self.name)
+
+    def setTotal(self, total):
+        self.total = total
+
+    def update(self, value):
+        self.value = max(0, min(value, self.total))
+        self.obj.progress(self.value/self.total, self.name)
+
+    def next(self):
+        self.value += 1
+        self.update(self.value)
+
+    def back(self):
+        self.value -= 1
+        self.update(self.value)
+    
+    def close(self):
+        self.obj.empty()
+
 # Main Functions
 def NoteCode_Parse(note_code):
     '''
@@ -258,9 +287,7 @@ def UI_ExtractNotesFromMIDIFile():
         os.makedirs(os.path.dirname(PATHS["temp"]["midi"]), exist_ok=True)
         open(PATHS["temp"]["midi"], "wb").write(USERINPUT_MIDIFile.read())
         USERINPUT_MIDIFile = LIBRARIES["MusicGenerator"]["Piano"].AudioGen_LoadMIDI(PATHS["temp"]["midi"])
-        ## Speed
-        USERINPUT_Speed = st.number_input("Speed", min_value=0.01, value=1.0)
-        ## Clip and Extract Notes
+        ## Clip
         cols = st.columns(2)
         cols = [cols[0].columns((1, 3)), cols[1].columns((1, 3))]
         AUDIO_ClipTime = [0.0, float(USERINPUT_MIDIFile.length)]
@@ -284,6 +311,9 @@ def UI_ExtractNotesFromMIDIFile():
             USERINPUT_ClipTime[1] if USERINPUT_ClipTime[1] > -1 else AUDIO_ClipTime[1]
         )
         st.slider("Clip", min_value=AUDIO_ClipTime[0], max_value=AUDIO_ClipTime[1], value=Display_ClipTime, disabled=True)
+        ## Speed
+        USERINPUT_Speed = st.number_input("Speed", min_value=0.01, value=1.0)
+        ## Extract Notes
         USERINPUT_InputTracks_Notes = CACHEDFUNC_MIDI_ExtractNotes(USERINPUT_MIDIFile, USERINPUT_ClipTime, USERINPUT_Speed)
 
     return USERINPUT_InputTracks_Notes
@@ -508,8 +538,9 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
                 USERINPUT_FadeParams["threshold"] = subcols[1].number_input("Displayed Notes Window", min_value=1, value=5)
         USERINPUT_CompressSize = st.checkbox("Compress Combined Video Size", value=True)
         # Process Check
-        USERINPUT_Process = st.checkbox("Stream Visualise", value=False)
-        if not USERINPUT_Process: USERINPUT_Process = st.button("Visualise")
+        stream_cols = st.columns(2)
+        USERINPUT_Process = stream_cols[0].checkbox("Stream Visualise", value=False)
+        if not USERINPUT_Process: USERINPUT_Process = stream_cols[1].button("Visualise")
         if not USERINPUT_Process: st.stop()
         # Visualise
         TRACKS_DATA = {
@@ -520,16 +551,19 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
             st_track = TRACK_COLS[t]
             audio_path = TRACKS_audio_paths[t]
             NOTES = TRACKS_NOTES[t]
-            # ## Clean chords (notes with delay 0 causing visualisation jumps) (NOT WORKING, VIDEO IS NNOT IN SYNC DUE TO DELETION OF SOME NOTES)
-            # NOTES_CLEANED = []
-            # for ni in range(len(NOTES)):
-            #     note = NOTES[ni]
-            #     if ni > 0 and note["delay"] == 0:
-            #         if note["duration"] > NOTES_CLEANED[-1]["duration"]:
-            #             NOTES_CLEANED[-1] = note
-            #     else:
-            #         NOTES_CLEANED.append(note)
-            # NOTES = NOTES_CLEANED
+            ## Clean chords (notes with delay 0 causing visualisation jumps)
+            NOTES_CLEANED = []
+            for ni in range(len(NOTES)):
+                note = NOTES[ni]
+                if ni > 0 and note["delay"] == 0:
+                    # if note["duration"] > NOTES_CLEANED[-1]["duration"]:
+                    #     NOTES_CLEANED[-1] = note
+                    pass
+                else:
+                    NOTES_CLEANED.append(note)
+            NOTES = NOTES_CLEANED
+            ## Progress Bar
+            PROGRESS_BAR = ProgressBar(f"Visualising Track {t}")
             ## Generate Frames
             NOTES_FRAMES = LIBRARIES["Visualisers"]["CircleBouncer"].CircleBouncer_VisualiseNotes(
                 NOTES, UNIQUE_NOTES, frame_size=(VISUALISATION_SIZE, VISUALISATION_SIZE),
@@ -551,7 +585,8 @@ def UI_NoteVisualiser(TRACKS_NOTES, TRACKS_audio_paths):
                     "point": {
                         "radius": 0.01
                     }
-                }
+                },
+                PROGRESS_BAR=PROGRESS_BAR
             )
             video_path = PATHS["temp"]["video"].format(track=t)
             LIBRARIES["Visualisers"]["CircleBouncer"].VideoUtils_SaveVisualisationVideo(
@@ -592,8 +627,9 @@ def basic_piano_sequencer():
     USERINPUT_Tracks_Inputs = UI_LoadNotes(USERINPUT_InputTracks_Notes, editable=True)
 
     # Process Check
-    USERINPUT_Process = st.checkbox("Stream Process", value=False)
-    if not USERINPUT_Process: USERINPUT_Process = st.button("Process")
+    stream_cols = st.columns(2)
+    USERINPUT_Process = stream_cols[0].checkbox("Stream Process", value=False)
+    if not USERINPUT_Process: USERINPUT_Process = stream_cols[1].button("Process")
     if not USERINPUT_Process: st.stop()
     # Process Inputs
     TRACKS_DATA = CACHEDFUNC_GenerateAudioTracksFromNotes(USERINPUT_Tracks_Inputs)
@@ -648,8 +684,9 @@ def piano_music_generator():
         pass
 
     # Process Check
-    USERINPUT_Generate = st.checkbox("Stream Generate", value=True)
-    if not USERINPUT_Generate: USERINPUT_Generate = st.button("Generate")
+    stream_cols = st.columns(2)
+    USERINPUT_Generate = stream_cols[0].checkbox("Stream Generate", value=True)
+    if not USERINPUT_Generate: USERINPUT_Generate = stream_cols[1].button("Generate")
     if not USERINPUT_Generate: st.stop()
     ## Generate Notes
     NOTES_DATA = USERINPUT_NoteGenFunc(USERINPUT_NotesCount)
@@ -659,8 +696,9 @@ def piano_music_generator():
     USERINPUT_Inputs = USERINPUT_Inputs[0]
 
     # Process Check
-    USERINPUT_Process = st.checkbox("Stream Process", value=False)
-    if not USERINPUT_Process: USERINPUT_Process = st.button("Process")
+    stream_cols = st.columns(2)
+    USERINPUT_Process = stream_cols[0].checkbox("Stream Process", value=False)
+    if not USERINPUT_Process: USERINPUT_Process = stream_cols[1].button("Process")
     if not USERINPUT_Process: st.stop()
     # Process Inputs
 

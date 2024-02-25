@@ -289,7 +289,9 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         "note": {
             "cmap": CMAP_DEFAULT
         }
-    }):
+    },
+    PROGRESS_BAR=None
+    ):
     '''
     Circle Bouncer - Visualise Notes
 
@@ -388,6 +390,7 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
         "iteration": 0,
         "I": I
     }
+    if PROGRESS_BAR is not None: PROGRESS_BAR.setTotal(len(notes))
     for i in range(len(notes)):
         cur_data["iteration"] = i
         note_frames = []
@@ -407,6 +410,8 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
             )
 
         NOTES_FRAMES.append(note_frames)
+        if PROGRESS_BAR is not None: PROGRESS_BAR.next()
+    if PROGRESS_BAR is not None: PROGRESS_BAR.close()
 
     return NOTES_FRAMES
 
