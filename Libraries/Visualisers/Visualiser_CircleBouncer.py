@@ -321,7 +321,7 @@ def CircleBouncer_VisualiseNotes(notes, UNIQUE_NOTES, frame_size=(1024, 1024),
     NOTE_COLORS = {
         "fade_threshold": fade_params["threshold"],
         "background": Util_Hex2RGB(colors["circle"]) if sizes["circle"]["thickness"] == -1 else Util_Hex2RGB("#000000"),
-        "cmap_list": np.array(plt.cm.get_cmap(colors["note"]["cmap"])(np.linspace(0, 1, len(UNIQUE_NOTES)))[:, :3]*255, dtype=int).tolist()
+        "cmap_list": np.array(plt.get_cmap(colors["note"]["cmap"])(np.linspace(0, 1, len(UNIQUE_NOTES)))[:, :3]*255, dtype=int).tolist()
     }
     NOTE_COLORS["color_map"] = {
         UNIQUE_NOTES[i]: tuple(NOTE_COLORS["cmap_list"][i])
